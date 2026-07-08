@@ -1,0 +1,19 @@
+{
+  "id": "cubase",
+  "name": "Steinberg Cubase",
+  "shortname": "cubase",
+  "description": "Control Cubase transport via the MIDI Remote API",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": "https://github.com/example/companion-module-cubase.git",
+  "bugs": "https://github.com/example/companion-module-cubase/issues",
+  "manufacturer": "Steinberg",
+  "products": ["Cubase 12+"],
+  "keywords": ["daw", "midi", "transport"],
+  "runtime": {
+    "type": "node18",
+    "api": "1.1.0",
+    "entrypoint": "main.js"
+  },
+  "legacyIds": []
+}

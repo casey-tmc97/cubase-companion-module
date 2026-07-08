@@ -1,0 +1,25 @@
+{
+  "name": "companion-module-cubase",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@companion-module/base": "^2.0.0",
+    "@julusian/midi": "^3.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "rimraf": "^6.1.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
