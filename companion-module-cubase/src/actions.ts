@@ -14,7 +14,18 @@ export interface ModuleLike {
   }
   setActionDefinitions(definitions: CompanionActionDefinitions): void
   setFeedbackDefinitions(definitions: CompanionFeedbackDefinitions): void
-  setPresetDefinitions(structure: CompanionPresetSection[], definitions: CompanionPresetDefinitions): void
+  // `any` here (rather than the default-generic bare `CompanionPresetSection`/
+  // `CompanionPresetDefinitions`, i.e. `<InstanceTypes>`) is intentional: the real
+  // `InstanceBase<TManifest>.setPresetDefinitions` is parameterized by the module's
+  // own manifest type (see src/main.ts's `ModuleSchema`), which is a *different*
+  // (structurally incompatible, since it narrows `config` to `ModuleConfig`) type
+  // from the `InstanceTypes` default. Preset definitions embed their manifest type
+  // deep in nested action/condition entries, so method bivariance doesn't paper over
+  // the mismatch the way it does for setActionDefinitions/setFeedbackDefinitions.
+  // `ModuleLike` only needs structural duck-typing for tests, not manifest-accurate
+  // typing, so `any` here is the simplest fix that keeps `ModuleInstance` (main.ts)
+  // assignable to `ModuleLike` without weakening runtime behavior.
+  setPresetDefinitions(structure: CompanionPresetSection<any>[], definitions: CompanionPresetDefinitions<any>): void
   checkFeedbacks(...feedbackIds: string[]): void
 }
 
