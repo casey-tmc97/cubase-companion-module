@@ -23,6 +23,13 @@ export class MidiConnection extends EventEmitter {
       this.input.openPortByName(this.inPortName)
       this.output.openPortByName(this.outPortName)
     } catch (err) {
+      // One port may have opened successfully before the other threw. Close both
+      // unconditionally so a failed open() never leaves an OS MIDI port held open
+      // behind a module that reports itself disconnected. closePort() on a port
+      // that was never opened is a safe no-op (see @julusian/midi's native
+      // MidiInWinMM::closePort / MidiOutWinMM::closePort, both guarded on
+      // `connected_`).
+      this.close()
       const message = err instanceof Error ? err.message : String(err)
       this.emit('error', `Could not open configured MIDI port(s): ${message}`)
     }
