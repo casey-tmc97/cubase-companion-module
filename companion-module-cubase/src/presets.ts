@@ -56,7 +56,7 @@ export function UpdatePresets(self: ModuleLike): void {
       type: 'simple',
       name: 'Cubase Connected',
       style: {
-        text: 'Cubase\\nConnected',
+        text: 'Cubase\nConnected',
         size: '14',
         color: combineRgb(255, 255, 255),
         bgcolor: combineRgb(0, 0, 0),

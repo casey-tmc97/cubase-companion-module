@@ -26,7 +26,6 @@ export interface ModuleLike {
   // typing, so `any` here is the simplest fix that keeps `ModuleInstance` (main.ts)
   // assignable to `ModuleLike` without weakening runtime behavior.
   setPresetDefinitions(structure: CompanionPresetSection<any>[], definitions: CompanionPresetDefinitions<any>): void
-  checkFeedbacks(...feedbackIds: string[]): void
 }
 
 export function UpdateActions(self: ModuleLike): void {
