@@ -15,17 +15,39 @@ export class MidiConnection extends EventEmitter {
     private readonly outPortName: string,
   ) {
     super()
+    // Registered once here (not in open()) so repeated open()/close() cycles on the
+    // same instance (e.g. a retry after a failed open()) never stack duplicate
+    // 'message' listeners, which would otherwise cause handleMessage to fire multiple
+    // times per incoming message and emit spurious duplicate 'stateChanged' events.
+    this.input.on('message', (_deltaTime: number, message: number[]) => this.handleMessage(message))
   }
 
   open(): void {
-    this.input.on('message', (_deltaTime: number, message: number[]) => this.handleMessage(message))
     try {
       this.input.openPortByName(this.inPortName)
       this.output.openPortByName(this.outPortName)
+
+      // @julusian/midi's openPortByName does NOT throw when the name doesn't match
+      // any available port — it silently does nothing (linear scan, `return
+      // undefined` on no match; see node_modules/@julusian/midi/midi.js). So a typo'd
+      // port name, an unplugged device, or Cubase not yet running would otherwise
+      // "succeed" here with no port actually open and no error ever emitted. Verify
+      // explicitly via isPortOpen() and treat a still-closed port as a failure.
+      const inputOpen = this.input.isPortOpen()
+      const outputOpen = this.output.isPortOpen()
+      if (!inputOpen || !outputOpen) {
+        const missing: string[] = []
+        if (!inputOpen) missing.push(`input port "${this.inPortName}"`)
+        if (!outputOpen) missing.push(`output port "${this.outPortName}"`)
+        this.close()
+        this.emit('error', `Could not open configured MIDI port(s): ${missing.join(', ')} not found`)
+        return
+      }
     } catch (err) {
-      // One port may have opened successfully before the other threw. Close both
-      // unconditionally so a failed open() never leaves an OS MIDI port held open
-      // behind a module that reports itself disconnected. closePort() on a port
+      // Kept in addition to the isPortOpen() check above, in case some backend does
+      // throw. One port may have opened successfully before the other threw. Close
+      // both unconditionally so a failed open() never leaves an OS MIDI port held
+      // open behind a module that reports itself disconnected. closePort() on a port
       // that was never opened is a safe no-op (see @julusian/midi's native
       // MidiInWinMM::closePort / MidiOutWinMM::closePort, both guarded on
       // `connected_`).
