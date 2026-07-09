@@ -10,6 +10,20 @@ export enum TransportNote {
   Rewind = 6,
   Forward = 7,
   Heartbeat = 9,
+  // Dedicated state-feedback notes (Cubase -> Companion only), separate from
+  // the trigger notes above (Companion -> Cubase). ADR-004 originally had
+  // Play/Record/Cycle/Click's feedback share the same note as their trigger;
+  // that made the Cubase script's own feedback output loop back into its own
+  // input binding on the shared loopMIDI port, re-triggering the toggle and
+  // making it flip back and forth on its own (confirmed via direct MIDI trace
+  // of Cubase's mOnProcessValueChange -- see ADR-004 for detail). Splitting
+  // feedback onto its own notes, in the 10+ range ADR-004 reserved for
+  // exactly this, means the Cubase script's own output never matches what its
+  // input binding is listening for.
+  PlayState = 10,
+  RecordState = 11,
+  CycleState = 12,
+  ClickState = 13,
 }
 
 export interface DecodedNote {

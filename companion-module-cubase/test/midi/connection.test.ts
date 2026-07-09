@@ -49,8 +49,8 @@ vi.mock('@julusian/midi', async () => {
   return { Input: FakeInput, Output: FakeOutput }
 })
 
-const { MidiConnection } = await import('../../src/midi/connection.js')
-const { TransportNote, encodeNoteOn } = await import('../../src/midi/protocol.js')
+const { MidiConnection, TRIGGER_HOLD_MS } = await import('../../src/midi/connection.js')
+const { TransportNote, encodeNoteOn, encodeNoteOff } = await import('../../src/midi/protocol.js')
 const { HEARTBEAT_TIMEOUT_MS } = await import('../../src/midi/connectionState.js')
 
 function sendHeartbeat(connection: InstanceType<typeof MidiConnection>): void {
@@ -107,7 +107,7 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
 
     sendHeartbeat(connection)
     const fakeInput = (connection as unknown as { input: EventEmitter }).input
-    fakeInput.emit('message', 0, encodeNoteOn(TransportNote.Play))
+    fakeInput.emit('message', 0, encodeNoteOn(TransportNote.PlayState))
     expect(connection.getTransportState().playing).toBe(true)
 
     vi.advanceTimersByTime(HEARTBEAT_TIMEOUT_MS + 1000)
@@ -164,5 +164,154 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
 
     connection.close()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+// Companion's MIDI In/Out point at the same loopMIDI virtual port as the Cubase
+// script (see ADR-005), and loopMIDI echoes anything written to a port's output
+// back into every listener's input on that same port name -- including the
+// sender. So the moment sendTrigger()/sendNoteOn()/sendNoteOff() write a message
+// out, that exact message also arrives back on `this.input`'s 'message' event.
+// This used to be indistinguishable from genuine state feedback, since
+// Play/Record/Cycle/Click's feedback originally reused their trigger note --
+// that also turned out to be the root cause of a much worse bug (Cubase's own
+// input binding re-ingesting its own feedback as a fresh press; see ADR-004),
+// fixed by moving feedback onto dedicated *State notes Companion never sends
+// on. These tests exercise the suppression mechanism generically with
+// TransportNote.CycleState standing in for "some note Companion both sends
+// triggers on and tracks state for" -- the mechanism itself doesn't know or
+// care which notes are wired to what.
+describe('MidiConnection self-echo suppression', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function fakeInputOf(connection: InstanceType<typeof MidiConnection>): EventEmitter {
+    return (connection as unknown as { input: EventEmitter }).input
+  }
+
+  it('does not apply state from a self-sent trigger looped back on the same note', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    connection.sendTrigger(TransportNote.CycleState)
+    // sendTrigger()'s Note Off is sent TRIGGER_HOLD_MS after the Note On (see
+    // connection.ts) rather than immediately, so let it actually go out before
+    // simulating loopMIDI echoing both back into our own input.
+    vi.advanceTimersByTime(TRIGGER_HOLD_MS)
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TransportNote.CycleState))
+
+    expect(connection.getTransportState().cycleActive).toBe(false)
+
+    connection.close()
+  })
+
+  it('applies state from a later genuine echo once the self-sent pair has been consumed', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    connection.sendTrigger(TransportNote.CycleState)
+    vi.advanceTimersByTime(TRIGGER_HOLD_MS)
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TransportNote.CycleState))
+
+    // Cubase's real feedback, arriving after its own script-engine round trip.
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+
+    expect(connection.getTransportState().cycleActive).toBe(true)
+
+    connection.close()
+  })
+
+  it('still applies state from messages that were never self-sent', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    // No sendTrigger() call here -- this is Cubase-initiated (e.g. the user
+    // toggled Cycle from Cubase's own transport bar, not from Companion).
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+
+    expect(connection.getTransportState().cycleActive).toBe(true)
+
+    connection.close()
+  })
+
+  it('stops trusting a pending self-echo once it is older than the suppression window', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    connection.sendTrigger(TransportNote.CycleState)
+    vi.advanceTimersByTime(1000)
+    // Arrives too late to plausibly be the loopback echo of the send above --
+    // treat it as genuine (e.g. a real, independent later Cubase toggle) rather
+    // than silently swallowing it forever.
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+
+    expect(connection.getTransportState().cycleActive).toBe(true)
+
+    connection.close()
+  })
+})
+
+describe('MidiConnection sendTrigger hold gap', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('sends Note On immediately and Note Off only after TRIGGER_HOLD_MS', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendTrigger(TransportNote.CycleState)
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TransportNote.CycleState))
+
+    vi.advanceTimersByTime(TRIGGER_HOLD_MS - 1)
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(1)
+    expect(sendSpy).toHaveBeenCalledTimes(2)
+    expect(sendSpy).toHaveBeenNthCalledWith(2, encodeNoteOff(TransportNote.CycleState))
+
+    connection.close()
+  })
+})
+
+describe('MidiConnection hold-style Rewind/Forward', () => {
+  it('sendNoteOn sends only a Note On, with no matching Note Off', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendNoteOn(TransportNote.Rewind)
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TransportNote.Rewind))
+
+    connection.close()
+  })
+
+  it('sendNoteOff sends only a Note Off', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendNoteOff(TransportNote.Rewind)
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TransportNote.Rewind))
+
+    connection.close()
   })
 })

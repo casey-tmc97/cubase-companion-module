@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@companion-module/base": "^2.0.0",
+    "@companion-module/base": "2.0.4",
     "@julusian/midi": "^3.6.1"
   },
   "devDependencies": {

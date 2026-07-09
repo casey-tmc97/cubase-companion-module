@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { Input, Output } from '@julusian/midi'
-import { TransportNote, encodeTrigger, decodeMidiMessage } from './protocol.js'
+import { TransportNote, encodeNoteOn, encodeNoteOff, encodeTrigger, decodeMidiMessage } from './protocol.js'
 import { TransportState, createInitialTransportState, applyStateNote } from './transportState.js'
 import { ConnectionState } from './connectionState.js'
 
@@ -8,6 +8,37 @@ import { ConnectionState } from './connectionState.js'
 // while no MIDI messages are arriving. Must be well under HEARTBEAT_TIMEOUT_MS so
 // a timeout is detected promptly rather than lingering for another full window.
 const CONNECTION_CHECK_INTERVAL_MS = 1000
+
+// Companion's MIDI In/Out point at the same loopMIDI virtual port the Cubase
+// script uses (ADR-005's same-machine topology), and loopMIDI echoes anything
+// written to a port's output back into every listener's input on that port --
+// including the sender. So a message we just sent arrives back on `this.input`
+// moments later, byte-identical to and indistinguishable from genuine state
+// feedback Cubase echoes back on the same note (ADR-004). Left unhandled, that
+// self-echo raced Cubase's real (slower, script-engine-round-tripped) feedback
+// and flipped state true-then-false within microseconds -- visible as a flicker
+// instead of a clean toggle (e.g. Cycle/Click). SELF_ECHO_WINDOW_MS bounds how
+// long a just-sent message is trusted as "could still be my own loopback echo";
+// it comfortably covers local loopback latency while staying far shorter than a
+// genuine Cubase round trip, so a real independent state change past the window
+// is never mistaken for an echo of our own send. On topologies with no self-echo
+// at all (e.g. cross-machine network MIDI per ADR-005), pending entries simply
+// expire unmatched and are dropped -- see consumeSelfEcho().
+const SELF_ECHO_WINDOW_MS = 150
+
+// sendTrigger() used to send Note On immediately followed by Note Off with no
+// gap at all. Cubase's .setTypeToggle() bindings for Record/Cycle/Click kept
+// reporting the toggle reverting right back to its prior state after a
+// Companion-sent trigger, even once feedback was wired up correctly -- a
+// genuine hardware button always has *some* non-zero hold duration between
+// press and release, and a real gap here better matches what Cubase's toggle
+// handling expects instead of a zero-duration pulse.
+export const TRIGGER_HOLD_MS = 40
+
+function messagesEqual(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((byte, index) => byte === b[index])
+}
 
 export class MidiConnection extends EventEmitter {
   private readonly input = new Input()
@@ -22,6 +53,9 @@ export class MidiConnection extends EventEmitter {
   // diffs it against lastKnownConnected so a silent timeout is still observed.
   private connectionCheckTimer: ReturnType<typeof setInterval> | null = null
   private lastKnownConnected = false
+  // FIFO of messages we've sent that a loopback echo might still be pending for.
+  // See SELF_ECHO_WINDOW_MS above for why this exists.
+  private readonly pendingSelfEcho: Array<{ message: number[]; sentAt: number }> = []
 
   constructor(
     private readonly inPortName: string,
@@ -80,14 +114,53 @@ export class MidiConnection extends EventEmitter {
 
   close(): void {
     this.stopConnectionCheckTimer()
+    this.pendingSelfEcho.length = 0
     this.input.closePort()
     this.output.closePort()
   }
 
   sendTrigger(note: number): void {
-    for (const message of encodeTrigger(note)) {
-      this.output.sendMessage(message)
+    const [noteOn, noteOff] = encodeTrigger(note)
+    this.sendRaw(noteOn)
+    setTimeout(() => this.sendRaw(noteOff), TRIGGER_HOLD_MS)
+  }
+
+  // For host values that need a genuine press-and-hold (e.g. Cubase's
+  // mRewind/mForward -- see actions.ts), rather than sendTrigger()'s instant
+  // Note On + Note Off pulse, which never registers as a hold.
+  sendNoteOn(note: number): void {
+    this.sendRaw(encodeNoteOn(note))
+  }
+
+  sendNoteOff(note: number): void {
+    this.sendRaw(encodeNoteOff(note))
+  }
+
+  private sendRaw(message: number[]): void {
+    this.pendingSelfEcho.push({ message, sentAt: Date.now() })
+    this.output.sendMessage(message)
+  }
+
+  // Returns true if `message` matches a message we ourselves sent recently
+  // (and consumes it, so it isn't matched again), meaning it's almost
+  // certainly our own loopback echo rather than genuine incoming state.
+  private consumeSelfEcho(message: number[]): boolean {
+    const now = Date.now()
+    while (this.pendingSelfEcho.length > 0) {
+      const pending = this.pendingSelfEcho[0]
+      if (now - pending.sentAt > SELF_ECHO_WINDOW_MS) {
+        // Too old to plausibly be our own loopback echo -- drop it and let
+        // whatever arrives now be treated as genuine.
+        this.pendingSelfEcho.shift()
+        continue
+      }
+      if (messagesEqual(pending.message, message)) {
+        this.pendingSelfEcho.shift()
+        return true
+      }
+      break
     }
+    return false
   }
 
   getTransportState(): TransportState {
@@ -99,6 +172,8 @@ export class MidiConnection extends EventEmitter {
   }
 
   private handleMessage(message: number[]): void {
+    if (this.consumeSelfEcho(message)) return
+
     const decoded = decodeMidiMessage(message)
     if (!decoded) return
 

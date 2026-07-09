@@ -31,6 +31,29 @@ function preset(text: string, actionId: string, feedbackId?: string): CompanionS
   }
 }
 
+// For hold-style actions (Rewind/Forward -- see actions.ts) where press and
+// release must send different MIDI messages (Note On to start, Note Off to
+// stop), unlike `preset()`'s buttons which only ever fire on press.
+function holdPreset(text: string, downActionId: string, upActionId: string): CompanionSimplePresetDefinition {
+  return {
+    type: 'simple',
+    name: text,
+    style: {
+      text,
+      size: '14',
+      color: combineRgb(255, 255, 255),
+      bgcolor: combineRgb(0, 0, 0),
+    },
+    steps: [
+      {
+        down: [{ actionId: downActionId, options: {} }],
+        up: [{ actionId: upActionId, options: {} }],
+      },
+    ],
+    feedbacks: [],
+  }
+}
+
 const TRANSPORT_PRESET_IDS = [
   'play',
   'stop',
@@ -50,8 +73,8 @@ export function UpdatePresets(self: ModuleLike): void {
     returnToZero: preset('Return to Zero', 'returnToZero'),
     toggleCycle: preset('Cycle', 'toggleCycle', 'cycleActive'),
     toggleClick: preset('Click', 'toggleClick', 'clickActive'),
-    rewind: preset('Rewind', 'rewind'),
-    forward: preset('Forward', 'forward'),
+    rewind: holdPreset('Rewind', 'rewind', 'rewindStop'),
+    forward: holdPreset('Forward', 'forward', 'forwardStop'),
     cubaseConnected: {
       type: 'simple',
       name: 'Cubase Connected',

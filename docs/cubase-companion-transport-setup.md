@@ -12,12 +12,13 @@
 
 ## Verification checklist
 
-- [ ] Press Play in Companion → Cubase transport starts, and the Companion Play button's "Playing" feedback lights.
+- [x] Press Play in Companion → Cubase transport starts, and the Companion Play button's "Playing" feedback lights.
 - [ ] Press Play on Cubase's own transport bar → the Companion Play button lights without any Companion-side press.
-- [ ] Repeat for Record ("Recording" feedback) and Cycle ("Cycle Active" feedback) and Click ("Click Active" feedback), in both directions.
+- [x] Repeat for Record ("Recording" feedback) and Cycle ("Cycle Active" feedback) and Click ("Click Active" feedback), triggered from Companion.
+- [ ] Same, triggered from Cubase's own UI.
 - [ ] "Stopped" feedback is lit when transport is idle, and turns off the instant Play or Record starts.
-- [ ] Fire Return to Zero, Rewind, and Forward from Companion and confirm Cubase responds (no feedback expected on these three).
+- [x] Fire Return to Zero, Rewind, and Forward from Companion and confirm Cubase responds (no feedback expected on these three; Rewind/Forward must be triggered via the preset buttons, whose release step sends the matching Note Off — a manually-built button using only the raw action will not stop on release).
 - [ ] Quit Cubase (or remove the MIDI Remote controller) and confirm "Cubase Connected" flips off within ~5 seconds.
 - [ ] Relaunch Cubase / re-add the controller and confirm "Cubase Connected" flips back on and all four stateful feedbacks (Playing/Recording/Cycle/Click) sync to Cubase's actual current state immediately, without needing a state change first.
 
-> **Status: not yet executed.** This checklist has not been run against a real Cubase instance. See the Task 11 verification report for details on what was (and wasn't) checked in the environment that produced this module. A human with a real Cubase 15 install and a real or virtual MIDI port pair must run through every item above and check it off (or fix the relevant code) before this module can be considered verified end-to-end.
+> **Status: verified for the Companion-triggered direction.** All eight transport actions (Play/Stop/Record/Return to Zero/Cycle/Click/Rewind/Forward) and the Play/Record/Cycle/Click feedback were confirmed working end-to-end against a real Cubase 15 instance, triggered from Companion. Getting there required real fixes beyond the original design — see ADR-004's 2026-07-09 amendment for the root causes (Stop's double-invoke, Rewind/Forward's hold semantics, and the state-feedback note split that fixed Cubase's own output looping back into its own input binding). The Cubase-initiated direction (pressing transport controls in Cubase's own UI and watching Companion react) and the disconnect/reconnect resync behavior are implemented and unit-tested but not yet manually verified against real Cubase — still open per the unchecked items above.

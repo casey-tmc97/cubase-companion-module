@@ -18,13 +18,13 @@ export function createInitialTransportState(): TransportState {
 
 export function applyStateNote(state: TransportState, note: number, isOn: boolean): TransportState {
   switch (note) {
-    case TransportNote.Play:
+    case TransportNote.PlayState:
       return { ...state, playing: isOn }
-    case TransportNote.Record:
+    case TransportNote.RecordState:
       return { ...state, recording: isOn }
-    case TransportNote.Cycle:
+    case TransportNote.CycleState:
       return { ...state, cycleActive: isOn }
-    case TransportNote.Click:
+    case TransportNote.ClickState:
       return { ...state, clickActive: isOn }
     default:
       return state
