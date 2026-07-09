@@ -16,9 +16,11 @@ Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-tran
 
 Per-channel mute, solo, fader volume, pan for specific tracks/channels (e.g. "mute vocal track"). Will need its own spec (design questions: how are channels addressed — by name, by index, by selection? does fader volume need a rotary/relative encoder input, or discrete up/down actions?) before implementation.
 
-## Phase 3: Markers & locators — Not started
+## Phase 3: Markers & locators — In progress
 
-Jump to cycle markers, punch in/out points, named markers/cue points.
+- [x] Add Marker, Next/Previous Marker, To Marker 1-9 — see [design spec](docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md) and [ADR-006](docs/adr/ADR-006-channel-per-phase-script.md)
+- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-markers-setup.md](docs/cubase-companion-markers-setup.md)'s checklist.
+- [ ] Cycle markers, punch in/out points, named marker assignment (`Set Marker N`) — out of scope for this pass, could extend the same pattern later.
 
 ## Phase 4: Track/selection & macros — Not started
 
