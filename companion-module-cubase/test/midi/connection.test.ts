@@ -50,12 +50,12 @@ vi.mock('@julusian/midi', async () => {
 })
 
 const { MidiConnection, TRIGGER_HOLD_MS } = await import('../../src/midi/connection.js')
-const { TransportNote, encodeNoteOn, encodeNoteOff } = await import('../../src/midi/protocol.js')
+const { TransportNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL, encodeNoteOn, encodeNoteOff } = await import('../../src/midi/protocol.js')
 const { HEARTBEAT_TIMEOUT_MS } = await import('../../src/midi/connectionState.js')
 
 function sendHeartbeat(connection: InstanceType<typeof MidiConnection>): void {
   const fakeInput = (connection as unknown as { input: EventEmitter }).input
-  fakeInput.emit('message', 0, encodeNoteOn(TransportNote.Heartbeat))
+  fakeInput.emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Heartbeat))
 }
 
 describe('MidiConnection heartbeat-timeout disconnect detection', () => {
@@ -107,7 +107,7 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
 
     sendHeartbeat(connection)
     const fakeInput = (connection as unknown as { input: EventEmitter }).input
-    fakeInput.emit('message', 0, encodeNoteOn(TransportNote.PlayState))
+    fakeInput.emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.PlayState))
     expect(connection.getTransportState().playing).toBe(true)
 
     vi.advanceTimersByTime(HEARTBEAT_TIMEOUT_MS + 1000)
@@ -198,13 +198,13 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
     // sendTrigger()'s Note Off is sent TRIGGER_HOLD_MS after the Note On (see
     // connection.ts) rather than immediately, so let it actually go out before
     // simulating loopMIDI echoing both back into our own input.
     vi.advanceTimersByTime(TRIGGER_HOLD_MS)
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
-    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     expect(connection.getTransportState().cycleActive).toBe(false)
 
@@ -215,13 +215,13 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
     vi.advanceTimersByTime(TRIGGER_HOLD_MS)
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
-    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     // Cubase's real feedback, arriving after its own script-engine round trip.
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     expect(connection.getTransportState().cycleActive).toBe(true)
 
@@ -234,7 +234,7 @@ describe('MidiConnection self-echo suppression', () => {
 
     // No sendTrigger() call here -- this is Cubase-initiated (e.g. the user
     // toggled Cycle from Cubase's own transport bar, not from Companion).
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     expect(connection.getTransportState().cycleActive).toBe(true)
 
@@ -245,12 +245,12 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
     vi.advanceTimersByTime(1000)
     // Arrives too late to plausibly be the loopback echo of the send above --
     // treat it as genuine (e.g. a real, independent later Cubase toggle) rather
     // than silently swallowing it forever.
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     expect(connection.getTransportState().cycleActive).toBe(true)
 
@@ -272,17 +272,29 @@ describe('MidiConnection sendTrigger hold gap', () => {
     connection.open()
     const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
 
-    connection.sendTrigger(TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TransportNote.CycleState))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
 
     vi.advanceTimersByTime(TRIGGER_HOLD_MS - 1)
     expect(sendSpy).toHaveBeenCalledTimes(1)
 
     vi.advanceTimersByTime(1)
     expect(sendSpy).toHaveBeenCalledTimes(2)
-    expect(sendSpy).toHaveBeenNthCalledWith(2, encodeNoteOff(TransportNote.CycleState))
+    expect(sendSpy).toHaveBeenNthCalledWith(2, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
+
+    connection.close()
+  })
+
+  it('sends on the given channel, not always TRANSPORT_CHANNEL', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendTrigger(MARKERS_CHANNEL, 0)
+
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(MARKERS_CHANNEL, 0))
 
     connection.close()
   })
@@ -297,7 +309,7 @@ describe('MidiConnection hold-style Rewind/Forward', () => {
     connection.sendNoteOn(TransportNote.Rewind)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TransportNote.Rewind))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Rewind))
 
     connection.close()
   })
@@ -310,7 +322,7 @@ describe('MidiConnection hold-style Rewind/Forward', () => {
     connection.sendNoteOff(TransportNote.Rewind)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TransportNote.Rewind))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.Rewind))
 
     connection.close()
   })

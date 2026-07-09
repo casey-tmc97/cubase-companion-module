@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { Input, Output } from '@julusian/midi'
-import { TransportNote, encodeNoteOn, encodeNoteOff, encodeTrigger, decodeMidiMessage } from './protocol.js'
+import { TransportNote, TRANSPORT_CHANNEL, encodeNoteOn, encodeNoteOff, encodeTrigger, decodeMidiMessage } from './protocol.js'
 import { TransportState, createInitialTransportState, applyStateNote } from './transportState.js'
 import { ConnectionState } from './connectionState.js'
 
@@ -119,21 +119,25 @@ export class MidiConnection extends EventEmitter {
     this.output.closePort()
   }
 
-  sendTrigger(note: number): void {
-    const [noteOn, noteOff] = encodeTrigger(note)
+  // channel is explicit (not defaulted to TRANSPORT_CHANNEL) because this is
+  // the one send method shared across phase scripts on different channels --
+  // see actions.ts's Markers actions for the MARKERS_CHANNEL callers.
+  sendTrigger(channel: number, note: number): void {
+    const [noteOn, noteOff] = encodeTrigger(channel, note)
     this.sendRaw(noteOn)
     setTimeout(() => this.sendRaw(noteOff), TRIGGER_HOLD_MS)
   }
 
   // For host values that need a genuine press-and-hold (e.g. Cubase's
   // mRewind/mForward -- see actions.ts), rather than sendTrigger()'s instant
-  // Note On + Note Off pulse, which never registers as a hold.
+  // Note On + Note Off pulse, which never registers as a hold. Transport-only
+  // (Rewind/Forward/Stop) -- always TRANSPORT_CHANNEL, unlike sendTrigger.
   sendNoteOn(note: number): void {
-    this.sendRaw(encodeNoteOn(note))
+    this.sendRaw(encodeNoteOn(TRANSPORT_CHANNEL, note))
   }
 
   sendNoteOff(note: number): void {
-    this.sendRaw(encodeNoteOff(note))
+    this.sendRaw(encodeNoteOff(TRANSPORT_CHANNEL, note))
   }
 
   private sendRaw(message: number[]): void {
