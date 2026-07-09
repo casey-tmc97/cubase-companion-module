@@ -65,6 +65,21 @@ const TRANSPORT_PRESET_IDS = [
   'forward',
 ] as const
 
+const MARKER_PRESET_IDS = [
+  'addMarker',
+  'nextMarker',
+  'previousMarker',
+  'toMarker1',
+  'toMarker2',
+  'toMarker3',
+  'toMarker4',
+  'toMarker5',
+  'toMarker6',
+  'toMarker7',
+  'toMarker8',
+  'toMarker9',
+] as const
+
 export function UpdatePresets(self: ModuleLike): void {
   const presets: CompanionPresetDefinitions = {
     play: preset('Play', 'play', 'playing'),
@@ -75,6 +90,18 @@ export function UpdatePresets(self: ModuleLike): void {
     toggleClick: preset('Click', 'toggleClick', 'clickActive'),
     rewind: holdPreset('Rewind', 'rewind', 'rewindStop'),
     forward: holdPreset('Forward', 'forward', 'forwardStop'),
+    addMarker: preset('Add Marker', 'addMarker'),
+    nextMarker: preset('Next Marker', 'nextMarker'),
+    previousMarker: preset('Previous Marker', 'previousMarker'),
+    toMarker1: preset('To Marker 1', 'toMarker1'),
+    toMarker2: preset('To Marker 2', 'toMarker2'),
+    toMarker3: preset('To Marker 3', 'toMarker3'),
+    toMarker4: preset('To Marker 4', 'toMarker4'),
+    toMarker5: preset('To Marker 5', 'toMarker5'),
+    toMarker6: preset('To Marker 6', 'toMarker6'),
+    toMarker7: preset('To Marker 7', 'toMarker7'),
+    toMarker8: preset('To Marker 8', 'toMarker8'),
+    toMarker9: preset('To Marker 9', 'toMarker9'),
     cubaseConnected: {
       type: 'simple',
       name: 'Cubase Connected',
@@ -94,6 +121,11 @@ export function UpdatePresets(self: ModuleLike): void {
       id: 'transport',
       name: 'Transport',
       definitions: [...TRANSPORT_PRESET_IDS],
+    },
+    {
+      id: 'markers',
+      name: 'Markers',
+      definitions: [...MARKER_PRESET_IDS],
     },
     {
       id: 'status',
