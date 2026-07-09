@@ -4,11 +4,11 @@ import type {
   CompanionPresetDefinitions,
   CompanionPresetSection,
 } from '@companion-module/base'
-import { TransportNote } from './midi/protocol.js'
+import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from './midi/protocol.js'
 
 export interface ModuleLike {
   midi: {
-    sendTrigger(note: number): void
+    sendTrigger(channel: number, note: number): void
     sendNoteOn(note: number): void
     sendNoteOff(note: number): void
     getTransportState(): { playing: boolean; recording: boolean; cycleActive: boolean; clickActive: boolean }
@@ -35,7 +35,7 @@ export function UpdateActions(self: ModuleLike): void {
     play: {
       name: 'Play',
       options: [],
-      callback: async () => self.midi.sendTrigger(TransportNote.Play),
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Play),
     },
     // mStop is a plain (non-toggle, non-command) value binding in the Cubase
     // script, so every write to it invokes Stop -- sendTrigger's Note On +
@@ -57,22 +57,22 @@ export function UpdateActions(self: ModuleLike): void {
     record: {
       name: 'Record',
       options: [],
-      callback: async () => self.midi.sendTrigger(TransportNote.Record),
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Record),
     },
     returnToZero: {
       name: 'Return to Zero',
       options: [],
-      callback: async () => self.midi.sendTrigger(TransportNote.ReturnToZero),
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.ReturnToZero),
     },
     toggleCycle: {
       name: 'Toggle Cycle',
       options: [],
-      callback: async () => self.midi.sendTrigger(TransportNote.Cycle),
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Cycle),
     },
     toggleClick: {
       name: 'Toggle Click',
       options: [],
-      callback: async () => self.midi.sendTrigger(TransportNote.Click),
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Click),
     },
     // Cubase's mRewind/mForward host values need a genuine hold (value stays 1
     // while pressed, back to 0 on release) to produce continuous motion -- a
@@ -98,6 +98,69 @@ export function UpdateActions(self: ModuleLike): void {
       name: 'Forward Stop',
       options: [],
       callback: async () => self.midi.sendNoteOff(TransportNote.Forward),
+    },
+    // Markers (Phase 3): one-shot triggers on MARKERS_CHANNEL, no feedback --
+    // see docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md
+    // and ADR-006.
+    addMarker: {
+      name: 'Add Marker',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.AddMarker),
+    },
+    nextMarker: {
+      name: 'Next Marker',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.NextMarker),
+    },
+    previousMarker: {
+      name: 'Previous Marker',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.PreviousMarker),
+    },
+    toMarker1: {
+      name: 'To Marker 1',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker1),
+    },
+    toMarker2: {
+      name: 'To Marker 2',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker2),
+    },
+    toMarker3: {
+      name: 'To Marker 3',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker3),
+    },
+    toMarker4: {
+      name: 'To Marker 4',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker4),
+    },
+    toMarker5: {
+      name: 'To Marker 5',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker5),
+    },
+    toMarker6: {
+      name: 'To Marker 6',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker6),
+    },
+    toMarker7: {
+      name: 'To Marker 7',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker7),
+    },
+    toMarker8: {
+      name: 'To Marker 8',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker8),
+    },
+    toMarker9: {
+      name: 'To Marker 9',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker9),
     },
   }
 

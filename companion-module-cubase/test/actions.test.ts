@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { UpdateActions } from '../src/actions.js'
-import { TransportNote } from '../src/midi/protocol.js'
+import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from '../src/midi/protocol.js'
 
 function makeFakeSelf() {
   return {
@@ -18,7 +18,7 @@ function makeFakeSelf() {
 }
 
 describe('UpdateActions', () => {
-  it('registers one action per transport function', () => {
+  it('registers one action per transport function plus the marker actions', () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
 
@@ -35,6 +35,18 @@ describe('UpdateActions', () => {
         'rewindStop',
         'forward',
         'forwardStop',
+        'addMarker',
+        'nextMarker',
+        'previousMarker',
+        'toMarker1',
+        'toMarker2',
+        'toMarker3',
+        'toMarker4',
+        'toMarker5',
+        'toMarker6',
+        'toMarker7',
+        'toMarker8',
+        'toMarker9',
       ].sort(),
     )
   })
@@ -87,47 +99,57 @@ describe('UpdateActions', () => {
     expect(self.midi.sendNoteOff).toHaveBeenCalledWith(TransportNote.Forward)
   })
 
-  it('play action sends a trigger on the Play note', async () => {
+  it('play action sends a trigger on TRANSPORT_CHANNEL, Play note', async () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
     const definitions = self.setActionDefinitions.mock.calls[0][0]
 
     await definitions.play.callback({} as any)
 
-    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TransportNote.Play)
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Play)
   })
 
   // NOTE: sendNoteOn-only was tried here and reverted -- it made Record stop
   // responding entirely, showing Cubase's toggle needs the full press+release
   // pair. Back to sendTrigger pending further investigation.
-  it('record action sends a trigger on the Record note', async () => {
+  it('record action sends a trigger on TRANSPORT_CHANNEL, Record note', async () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
     const definitions = self.setActionDefinitions.mock.calls[0][0]
 
     await definitions.record.callback({} as any)
 
-    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TransportNote.Record)
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Record)
   })
 
-  it('toggleCycle action sends a trigger on the Cycle note', async () => {
+  it('toggleCycle action sends a trigger on TRANSPORT_CHANNEL, Cycle note', async () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
     const definitions = self.setActionDefinitions.mock.calls[0][0]
 
     await definitions.toggleCycle.callback({} as any)
 
-    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TransportNote.Cycle)
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Cycle)
   })
 
-  it('toggleClick action sends a trigger on the Click note', async () => {
+  it('toggleClick action sends a trigger on TRANSPORT_CHANNEL, Click note', async () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
     const definitions = self.setActionDefinitions.mock.calls[0][0]
 
     await definitions.toggleClick.callback({} as any)
 
-    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TransportNote.Click)
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Click)
+  })
+
+  it('returnToZero action sends a trigger on TRANSPORT_CHANNEL, ReturnToZero note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.returnToZero.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.ReturnToZero)
   })
 
   // mStop is a plain (non-toggle, non-command) value binding in the Cubase
@@ -146,5 +168,59 @@ describe('UpdateActions', () => {
     expect(self.midi.sendNoteOn).toHaveBeenCalledWith(TransportNote.Stop)
     expect(self.midi.sendTrigger).not.toHaveBeenCalled()
     expect(self.midi.sendNoteOff).not.toHaveBeenCalled()
+  })
+
+  // Markers phase (Phase 3): all one-shot triggers on MARKERS_CHANNEL, no
+  // feedback -- see docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
+  it('addMarker action sends a trigger on MARKERS_CHANNEL, AddMarker note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.addMarker.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.AddMarker)
+  })
+
+  it('nextMarker action sends a trigger on MARKERS_CHANNEL, NextMarker note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.nextMarker.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.NextMarker)
+  })
+
+  it('previousMarker action sends a trigger on MARKERS_CHANNEL, PreviousMarker note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.previousMarker.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.PreviousMarker)
+  })
+
+  const numberedMarkers: Array<[string, keyof typeof MarkerNote]> = [
+    ['toMarker1', 'ToMarker1'],
+    ['toMarker2', 'ToMarker2'],
+    ['toMarker3', 'ToMarker3'],
+    ['toMarker4', 'ToMarker4'],
+    ['toMarker5', 'ToMarker5'],
+    ['toMarker6', 'ToMarker6'],
+    ['toMarker7', 'ToMarker7'],
+    ['toMarker8', 'ToMarker8'],
+    ['toMarker9', 'ToMarker9'],
+  ]
+
+  it.each(numberedMarkers)('%s action sends a trigger on MARKERS_CHANNEL, %s note', async (actionId, noteKey) => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions[actionId].callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote[noteKey])
   })
 })
