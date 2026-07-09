@@ -1,4 +1,8 @@
 export const TRANSPORT_CHANNEL = 15 // MIDI channel 16, zero-indexed
+// Dedicated channel for the Markers phase script (CubaseCompanion_Markers.js),
+// separate from TRANSPORT_CHANNEL so each phase's note numbering is fully
+// self-contained -- see ADR-006.
+export const MARKERS_CHANNEL = 14 // MIDI channel 15, zero-indexed
 
 export enum TransportNote {
   Play = 0,
@@ -26,6 +30,28 @@ export enum TransportNote {
   ClickState = 13,
 }
 
+// Markers phase (Phase 3) note map, on MARKERS_CHANNEL -- entirely separate
+// from TransportNote's channel, so this enum's numbering never needs to
+// account for what Transport has already claimed. All one-shot triggers,
+// Companion -> Cubase only; no feedback and no heartbeat on this channel
+// (connectivity is already tracked via TransportNote.Heartbeat, since both
+// scripts share the same underlying MidiConnection). See ADR-006 and
+// docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
+export enum MarkerNote {
+  AddMarker = 0,
+  NextMarker = 1,
+  PreviousMarker = 2,
+  ToMarker1 = 3,
+  ToMarker2 = 4,
+  ToMarker3 = 5,
+  ToMarker4 = 6,
+  ToMarker5 = 7,
+  ToMarker6 = 8,
+  ToMarker7 = 9,
+  ToMarker8 = 10,
+  ToMarker9 = 11,
+}
+
 export interface DecodedNote {
   channel: number
   note: number
@@ -33,18 +59,23 @@ export interface DecodedNote {
   isOn: boolean
 }
 
-export function encodeNoteOn(note: number, velocity = 127): number[] {
-  return [0x90 | TRANSPORT_CHANNEL, note, velocity]
+export function encodeNoteOn(channel: number, note: number, velocity = 127): number[] {
+  return [0x90 | channel, note, velocity]
 }
 
-export function encodeNoteOff(note: number): number[] {
-  return [0x80 | TRANSPORT_CHANNEL, note, 0]
+export function encodeNoteOff(channel: number, note: number): number[] {
+  return [0x80 | channel, note, 0]
 }
 
-export function encodeTrigger(note: number): number[][] {
-  return [encodeNoteOn(note), encodeNoteOff(note)]
+export function encodeTrigger(channel: number, note: number): number[][] {
+  return [encodeNoteOn(channel, note), encodeNoteOff(channel, note)]
 }
 
+// Transport-only: only TransportNote.Heartbeat and the *State notes are ever
+// received from Cubase, and both live on TRANSPORT_CHANNEL. Markers has
+// nothing incoming to decode (see MarkerNote's doc comment above), so a
+// message on MARKERS_CHANNEL is correctly rejected here, same as any other
+// unrecognized channel.
 export function decodeMidiMessage(bytes: number[]): DecodedNote | null {
   if (bytes.length < 3) return null
 
