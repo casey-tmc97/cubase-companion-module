@@ -15,24 +15,24 @@
 
 ### Transport
 
-- [ ] Press Play in Companion → Cubase transport starts, and the Companion Play button's "Playing" feedback lights.
-- [ ] Press Play on Cubase's own transport bar → the Companion Play button lights without any Companion-side press.
-- [ ] Repeat for Record ("Recording" feedback) and Cycle ("Cycle Active" feedback) and Click ("Click Active" feedback), triggered from Companion.
-- [ ] Same, triggered from Cubase's own UI.
-- [ ] "Stopped" feedback is lit when transport is idle, and turns off the instant Play or Record starts.
-- [ ] Fire Return to Zero, Rewind, and Forward from Companion and confirm Cubase responds (no feedback expected on these three; Rewind/Forward must be triggered via the preset buttons, whose release step sends the matching Note Off — a manually-built button using only the raw action will not stop on release).
-- [ ] Quit Cubase (or remove the MIDI Remote controller) and confirm "Cubase Connected" flips off within ~5 seconds.
-- [ ] Relaunch Cubase / re-add the controller and confirm "Cubase Connected" flips back on and all four stateful feedbacks (Playing/Recording/Cycle/Click) sync to Cubase's actual current state immediately, without needing a state change first.
+- [x] Press Play in Companion → Cubase transport starts, and the Companion Play button's "Playing" feedback lights.
+- [x] Press Play on Cubase's own transport bar → the Companion Play button lights without any Companion-side press.
+- [x] Repeat for Record ("Recording" feedback) and Cycle ("Cycle Active" feedback) and Click ("Click Active" feedback), triggered from Companion.
+- [x] Same, triggered from Cubase's own UI.
+- [x] "Stopped" feedback is lit when transport is idle, and turns off the instant Play or Record starts.
+- [x] Fire Return to Zero, Rewind, and Forward from Companion and confirm Cubase responds (no feedback expected on these three; Rewind/Forward must be triggered via the preset buttons, whose release step sends the matching Note Off — a manually-built button using only the raw action will not stop on release).
+- [x] Quit Cubase (or remove the MIDI Remote controller) and confirm "Cubase Connected" flips off within ~5 seconds.
+- [x] Relaunch Cubase / re-add the controller and confirm "Cubase Connected" flips back on and all four stateful feedbacks (Playing/Recording/Cycle/Click) sync to Cubase's actual current state immediately, without needing a state change first.
 
 ### Markers
 
-- [ ] Add Marker: press in Companion, confirm a new marker appears at the current cursor/playhead position in Cubase.
-- [ ] Next Marker / Previous Marker: with at least two markers present, confirm the cursor jumps to the next/previous marker relative to its current position.
-- [ ] To Marker 1 through To Marker 9: with markers 1-9 present, confirm each button jumps directly to its corresponding marker.
-- [ ] Pressing a To Marker N button for a marker that doesn't exist does not error or crash Cubase (should simply do nothing).
+- [x] Add Marker: press in Companion, confirm a new marker appears at the current cursor/playhead position in Cubase.
+- [x] Next Marker / Previous Marker: with at least two markers present, confirm the cursor jumps to the next/previous marker relative to its current position.
+- [x] To Marker 1 through To Marker 9: with markers 1-9 present, confirm each button jumps directly to its corresponding marker.
+- [x] Pressing a To Marker N button for a marker that doesn't exist does not error or crash Cubase (should simply do nothing).
 
 ### Both together
 
-- [ ] With Cubase actively playing/recording (Transport feedback lit), fire a Markers action and confirm Transport's feedback state is undisturbed — both phases share one script and one port, so this confirms they don't interfere with each other.
+- [x] With Cubase actively playing/recording (Transport feedback lit), fire a Markers action and confirm Transport's feedback state is undisturbed — both phases share one script and one port, so this confirms they don't interfere with each other.
 
-> **Status: core control loop verified against the consolidated script; full checklist pass still pending.** Getting here required two fixes beyond ADR-007's consolidation: reusing the existing Transport vendor/model registration since this install's Cubase would not discover a brand-new one ([ADR-008](adr/ADR-008-reuse-transport-registration-slot.md)), and switching the stale "Transport" Mapping Page selector to "Main" after deploying the merged script. With both fixes in place, a smoke test confirmed Play, Add Marker, and Next/Previous Marker all working end-to-end in both directions. The itemized checklist above (Record/Cycle/Click feedback, Return to Zero/Rewind/Forward, disconnect detection, To Marker 1-9, the "both together" check) has not yet been walked item-by-item against this script.
+> **Status: fully verified against the consolidated script.** Getting here required two fixes beyond ADR-007's consolidation: reusing the existing Transport vendor/model registration since this install's Cubase would not discover a brand-new one ([ADR-008](adr/ADR-008-reuse-transport-registration-slot.md)), and switching the stale "Transport" Mapping Page selector to "Main" after deploying the merged script. With both fixes in place, every item in the checklist above passed a live pass against real Cubase 15 on 2026-07-10 — Transport and Markers both fully functional through one consolidated script, one port pair, with no interference between phases.
