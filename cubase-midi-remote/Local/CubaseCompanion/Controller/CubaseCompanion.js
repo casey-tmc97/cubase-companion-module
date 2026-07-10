@@ -49,7 +49,7 @@ var NOTE_TO_MARKER_9 = 11
 // will not bind two separate controllers to the same MIDI port pair, so every
 // phase lives in this one script on one port pair, differentiated only by
 // channel (see the per-phase channel constants above).
-var deviceDriver = midiremote_api.makeDeviceDriver('CubaseCompanion', 'Companion', 'companion-module-cubase')
+var deviceDriver = midiremote_api.makeDeviceDriver('CubaseCompanion', 'Controller', 'companion-module-cubase')
 
 var midiInput = deviceDriver.mPorts.makeMidiInput()
 var midiOutput = deviceDriver.mPorts.makeMidiOutput()

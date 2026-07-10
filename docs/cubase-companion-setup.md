@@ -4,10 +4,10 @@
 
 1. Point your existing virtual/network MIDI port pair so both a "CubaseCompanion" input and output are visible to Cubase and to Node/Companion (loopMIDI locally, or rtpMIDI/AppleMIDI across machines). One port pair carries every phase (Transport, Markers, and future phases) — see [ADR-007](adr/ADR-007-single-consolidated-cubase-script.md).
 2. Install the driver script: copy
-   `cubase-midi-remote/Local/CubaseCompanion/Companion/CubaseCompanion.js`
-   into `Documents\Steinberg\Cubase\MIDI Remote\Driver Scripts\Local\CubaseCompanion\Companion\`.
-   Steinberg's MIDI Remote requires a two-level `<Vendor>/<Model>/<script>.js` folder structure — a script placed directly in the vendor folder without a model subfolder will not be detected.
-3. In Cubase, go to Studio > Studio Setup > MIDI Remote. If you have an older "CubaseCompanion Transport" and/or "CubaseCompanion Markers" controller from a previous version of this setup, remove them — this script registers as a new controller (vendor `CubaseCompanion`, model `Companion`). Add it and bind its MIDI In/Out to your port pair.
+   `cubase-midi-remote/Local/CubaseCompanion/Controller/CubaseCompanion.js`
+   into `Documents\Steinberg\Cubase\MIDI Remote\Driver Scripts\Local\CubaseCompanion\Controller\`.
+   Steinberg's MIDI Remote requires a two-level `<Vendor>/<Model>/<script>.js` folder structure — a script placed directly in the vendor folder without a model subfolder will not be detected. (The model folder is named `Controller`, not `Companion` — an earlier attempt at deploying this script directly into the vendor folder with no model subfolder left Cubase's script cache in a state where the `Companion` model name specifically stopped being detected even after the folder structure was fixed; renaming to `Controller` sidestepped it rather than chasing the stuck cache further. See the MIDI Remote Manager's Scripts tab, Folder column, if you ever need to check what Cubase currently has catalogued.)
+3. In Cubase, go to Studio > Studio Setup > MIDI Remote. If you have an older "CubaseCompanion Transport" and/or "CubaseCompanion Markers" controller from a previous version of this setup, remove them — this script registers as a new controller (vendor `CubaseCompanion`, model `Controller`). Add it and bind its MIDI In/Out to your port pair.
 4. Build the Companion module: `cd companion-module-cubase && npm install && npm run build`.
 5. Load `companion-module-cubase` into a local Companion dev instance and add a Cubase instance, setting MIDI In/Out to the same port pair.
 
