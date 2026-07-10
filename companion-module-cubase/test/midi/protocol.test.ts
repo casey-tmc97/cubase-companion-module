@@ -12,6 +12,8 @@ import {
   encodeControlChange,
   encodeRelativeTick,
   decodeMidiMessage,
+  encodeChannelNameSysEx,
+  decodeChannelNameSysEx,
 } from '../../src/midi/protocol.js'
 
 describe('protocol constants', () => {
@@ -137,5 +139,44 @@ describe('encodeRelativeTick', () => {
 
   it('encodes a "down" tick as value 65', () => {
     expect(encodeRelativeTick(MIXER_CHANNEL, MixerCC.PanDelta, -1)).toEqual([0xbc, 1, 65])
+  })
+})
+
+describe('encodeChannelNameSysEx', () => {
+  it('wraps an ASCII name in a SysEx message with the 0x7D manufacturer id', () => {
+    expect(encodeChannelNameSysEx('Vocal')).toEqual([0xf0, 0x7d, 0x56, 0x6f, 0x63, 0x61, 0x6c, 0xf7])
+  })
+
+  it('truncates names longer than 32 characters', () => {
+    const longName = 'A'.repeat(40)
+    const encoded = encodeChannelNameSysEx(longName)
+    // 2 header bytes (0xF0, manufacturer id) + 32 name bytes + 1 trailer byte (0xF7)
+    expect(encoded.length).toBe(2 + 32 + 1)
+  })
+
+  it('replaces non-ASCII characters with 0x3F ("?")', () => {
+    expect(encodeChannelNameSysEx('Café')).toEqual([0xf0, 0x7d, 0x43, 0x61, 0x66, 0x3f, 0xf7])
+  })
+})
+
+describe('decodeChannelNameSysEx', () => {
+  it('decodes a SysEx message back to its ASCII name', () => {
+    expect(decodeChannelNameSysEx([0xf0, 0x7d, 0x56, 0x6f, 0x63, 0x61, 0x6c, 0xf7])).toBe('Vocal')
+  })
+
+  it('round-trips through encodeChannelNameSysEx', () => {
+    expect(decodeChannelNameSysEx(encodeChannelNameSysEx('Drum Bus'))).toBe('Drum Bus')
+  })
+
+  it('returns null for a message not starting with 0xF0', () => {
+    expect(decodeChannelNameSysEx([0x90, 0x7d, 0x56, 0xf7])).toBeNull()
+  })
+
+  it('returns null for a message not ending with 0xF7', () => {
+    expect(decodeChannelNameSysEx([0xf0, 0x7d, 0x56])).toBeNull()
+  })
+
+  it('returns null for a message with a different manufacturer id', () => {
+    expect(decodeChannelNameSysEx([0xf0, 0x00, 0x56, 0xf7])).toBeNull()
   })
 })

@@ -113,6 +113,39 @@ export function encodeRelativeTick(channel: number, controller: number, directio
   return encodeControlChange(channel, controller, direction === 1 ? RELATIVE_TICK_UP : RELATIVE_TICK_DOWN)
 }
 
+// Manufacturer ID 0x7D is the MIDI spec's reserved "non-commercial/
+// educational use" id -- appropriate here since this SysEx message is a
+// private convention between the two halves of this project, not a real
+// registered manufacturer.
+const SYSEX_MANUFACTURER_ID = 0x7d
+const CHANNEL_NAME_MAX_LENGTH = 32
+
+// SysEx data bytes must be 7-bit clean (0x00-0x7F). Restricting to printable
+// ASCII (0x20-0x7E) satisfies that automatically and also keeps control
+// characters (e.g. a stray newline) out of a Companion button's text.
+// Non-ASCII characters (accented letters, non-Latin scripts, emoji, etc.)
+// are replaced with '?' rather than building a full Unicode-safe nibble
+// encoding -- see the Phase 2 design spec's decision log for why.
+function toSafeAsciiByte(charCode: number): number {
+  return charCode >= 0x20 && charCode <= 0x7e ? charCode : 0x3f
+}
+
+export function encodeChannelNameSysEx(name: string): number[] {
+  const truncated = name.slice(0, CHANNEL_NAME_MAX_LENGTH)
+  const bytes = Array.from(truncated).map((char) => toSafeAsciiByte(char.charCodeAt(0)))
+  return [0xf0, SYSEX_MANUFACTURER_ID, ...bytes, 0xf7]
+}
+
+export function decodeChannelNameSysEx(bytes: number[]): string | null {
+  if (bytes.length < 3) return null
+  if (bytes[0] !== 0xf0) return null
+  if (bytes[bytes.length - 1] !== 0xf7) return null
+  if (bytes[1] !== SYSEX_MANUFACTURER_ID) return null
+
+  const nameBytes = bytes.slice(2, bytes.length - 1)
+  return String.fromCharCode(...nameBytes)
+}
+
 // Only TransportNote.Heartbeat/*State notes (TRANSPORT_CHANNEL) and
 // MixerNote.MuteState/SoloState (MIXER_CHANNEL) are ever received from
 // Cubase -- Markers has nothing incoming to decode (see MarkerNote's doc
