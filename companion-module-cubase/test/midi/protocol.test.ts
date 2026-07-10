@@ -100,6 +100,15 @@ describe('decodeMidiMessage', () => {
     expect(decodeMidiMessage([0x9e, 0, 127])).toBeNull()
   })
 
+  it('decodes a Note On on the Mixer channel', () => {
+    expect(decodeMidiMessage([0x9c, 2, 127])).toEqual({
+      channel: 12,
+      note: 2,
+      velocity: 127,
+      isOn: true,
+    })
+  })
+
   it('returns null for non Note On/Off status bytes', () => {
     expect(decodeMidiMessage([0xbf, 1, 127])).toBeNull()
   })

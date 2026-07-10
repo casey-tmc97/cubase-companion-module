@@ -113,11 +113,13 @@ export function encodeRelativeTick(channel: number, controller: number, directio
   return encodeControlChange(channel, controller, direction === 1 ? RELATIVE_TICK_UP : RELATIVE_TICK_DOWN)
 }
 
-// Transport-only: only TransportNote.Heartbeat and the *State notes are ever
-// received from Cubase, and both live on TRANSPORT_CHANNEL. Markers has
-// nothing incoming to decode (see MarkerNote's doc comment above), so a
-// message on MARKERS_CHANNEL is correctly rejected here, same as any other
-// unrecognized channel.
+// Only TransportNote.Heartbeat/*State notes (TRANSPORT_CHANNEL) and
+// MixerNote.MuteState/SoloState (MIXER_CHANNEL) are ever received from
+// Cubase -- Markers has nothing incoming to decode (see MarkerNote's doc
+// comment), so a message on MARKERS_CHANNEL is correctly rejected here, same
+// as any other unrecognized channel. SysEx (channel name feedback) has no
+// channel nibble and is decoded separately by decodeChannelNameSysEx, not
+// here.
 export function decodeMidiMessage(bytes: number[]): DecodedNote | null {
   if (bytes.length < 3) return null
 
@@ -127,7 +129,7 @@ export function decodeMidiMessage(bytes: number[]): DecodedNote | null {
   const note = bytes[1]
   const velocity = bytes[2]
 
-  if (channel !== TRANSPORT_CHANNEL) return null
+  if (channel !== TRANSPORT_CHANNEL && channel !== MIXER_CHANNEL) return null
   if (messageType !== 0x90 && messageType !== 0x80) return null
 
   const isOn = messageType === 0x90 && velocity > 0
