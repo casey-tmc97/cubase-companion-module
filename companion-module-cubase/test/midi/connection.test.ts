@@ -50,7 +50,8 @@ vi.mock('@julusian/midi', async () => {
 })
 
 const { MidiConnection, TRIGGER_HOLD_MS } = await import('../../src/midi/connection.js')
-const { TransportNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL, encodeNoteOn, encodeNoteOff } = await import('../../src/midi/protocol.js')
+const { TransportNote, MixerNote, MixerCC, TRANSPORT_CHANNEL, MARKERS_CHANNEL, MIXER_CHANNEL, encodeNoteOn, encodeNoteOff, encodeControlChange, encodeChannelNameSysEx } =
+  await import('../../src/midi/protocol.js')
 const { HEARTBEAT_TIMEOUT_MS } = await import('../../src/midi/connectionState.js')
 
 function sendHeartbeat(connection: InstanceType<typeof MidiConnection>): void {
@@ -324,6 +325,118 @@ describe('MidiConnection hold-style Rewind/Forward', () => {
     expect(sendSpy).toHaveBeenCalledTimes(1)
     expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.Rewind))
 
+    connection.close()
+  })
+})
+
+describe('MidiConnection sendRelativeCC', () => {
+  it('sends a single relative-tick CC message, up', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendRelativeCC(MIXER_CHANNEL, MixerCC.VolumeDelta, 1)
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    expect(sendSpy).toHaveBeenCalledWith(encodeControlChange(MIXER_CHANNEL, MixerCC.VolumeDelta, 1))
+
+    connection.close()
+  })
+
+  it('sends a single relative-tick CC message, down', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
+
+    connection.sendRelativeCC(MIXER_CHANNEL, MixerCC.PanDelta, -1)
+
+    expect(sendSpy).toHaveBeenCalledWith(encodeControlChange(MIXER_CHANNEL, MixerCC.PanDelta, 65))
+
+    connection.close()
+  })
+})
+
+describe('MidiConnection mixer state', () => {
+  function fakeInputOf(connection: InstanceType<typeof MidiConnection>): EventEmitter {
+    return (connection as unknown as { input: EventEmitter }).input
+  }
+
+  it('starts with initial mixer state', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    expect(connection.getMixerState()).toEqual({ muted: false, solo: false, selectedChannelName: null })
+
+    connection.close()
+  })
+
+  it('updates muted from a MuteState note on MIXER_CHANNEL and emits stateChanged', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const stateChangedSpy = vi.fn()
+    connection.on('stateChanged', stateChangedSpy)
+
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
+
+    expect(connection.getMixerState().muted).toBe(true)
+    expect(stateChangedSpy).toHaveBeenCalled()
+
+    connection.close()
+  })
+
+  it('updates solo from a SoloState note on MIXER_CHANNEL', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.SoloState))
+
+    expect(connection.getMixerState().solo).toBe(true)
+
+    connection.close()
+  })
+
+  it('does not confuse a Mixer-channel note with a same-numbered Transport note', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    // TransportNote.Record (2) and MixerNote.MuteState (2) share a note
+    // number but live on different channels -- only the Mixer one should
+    // affect mixer state, and vice versa.
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
+    expect(connection.getTransportState().recording).toBe(false)
+    expect(connection.getMixerState().muted).toBe(true)
+
+    connection.close()
+  })
+
+  it('updates the selected channel name from a SysEx message', () => {
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+    const stateChangedSpy = vi.fn()
+    connection.on('stateChanged', stateChangedSpy)
+
+    fakeInputOf(connection).emit('message', 0, encodeChannelNameSysEx('Vocal'))
+
+    expect(connection.getMixerState().selectedChannelName).toBe('Vocal')
+    expect(stateChangedSpy).toHaveBeenCalled()
+
+    connection.close()
+  })
+
+  it('resets mixer state on heartbeat-timeout disconnect', () => {
+    vi.useFakeTimers()
+    const connection = new MidiConnection('fake-in', 'fake-out')
+    connection.open()
+
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Heartbeat))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
+    expect(connection.getMixerState().muted).toBe(true)
+
+    vi.advanceTimersByTime(HEARTBEAT_TIMEOUT_MS + 1000)
+
+    expect(connection.getMixerState()).toEqual({ muted: false, solo: false, selectedChannelName: null })
+
+    vi.useRealTimers()
     connection.close()
   })
 })

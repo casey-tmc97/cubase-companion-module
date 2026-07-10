@@ -1,7 +1,18 @@
 import { EventEmitter } from 'node:events'
 import { Input, Output } from '@julusian/midi'
-import { TransportNote, TRANSPORT_CHANNEL, encodeNoteOn, encodeNoteOff, encodeTrigger, decodeMidiMessage } from './protocol.js'
+import {
+  TransportNote,
+  TRANSPORT_CHANNEL,
+  MIXER_CHANNEL,
+  encodeNoteOn,
+  encodeNoteOff,
+  encodeTrigger,
+  encodeRelativeTick,
+  decodeMidiMessage,
+  decodeChannelNameSysEx,
+} from './protocol.js'
 import { TransportState, createInitialTransportState, applyStateNote } from './transportState.js'
+import { MixerState, createInitialMixerState, applyMixerStateNote, applyChannelName } from './mixerState.js'
 import { ConnectionState } from './connectionState.js'
 
 // How often the passive ConnectionState.isConnected() computation is re-checked
@@ -44,6 +55,7 @@ export class MidiConnection extends EventEmitter {
   private readonly input = new Input()
   private readonly output = new Output()
   private transportState: TransportState = createInitialTransportState()
+  private mixerState: MixerState = createInitialMixerState()
   private readonly connectionState = new ConnectionState()
   // ConnectionState.isConnected() is a passive on-demand computation (derived from
   // now() - lastHeartbeatAt) — nothing re-evaluates it on its own once messages stop
@@ -140,6 +152,12 @@ export class MidiConnection extends EventEmitter {
     this.sendRaw(encodeNoteOff(TRANSPORT_CHANNEL, note))
   }
 
+  // One-directional (Companion -> Cubase only), same channel-explicit
+  // reasoning as sendTrigger -- see actions.ts's Mixer Volume/Pan actions.
+  sendRelativeCC(channel: number, controller: number, direction: 1 | -1): void {
+    this.sendRaw(encodeRelativeTick(channel, controller, direction))
+  }
+
   private sendRaw(message: number[]): void {
     this.pendingSelfEcho.push({ message, sentAt: Date.now() })
     this.output.sendMessage(message)
@@ -171,6 +189,10 @@ export class MidiConnection extends EventEmitter {
     return this.transportState
   }
 
+  getMixerState(): MixerState {
+    return this.mixerState
+  }
+
   isConnected(): boolean {
     return this.connectionState.isConnected()
   }
@@ -178,19 +200,41 @@ export class MidiConnection extends EventEmitter {
   private handleMessage(message: number[]): void {
     if (this.consumeSelfEcho(message)) return
 
-    const decoded = decodeMidiMessage(message)
-    if (!decoded) return
-
-    if (decoded.note === TransportNote.Heartbeat) {
-      this.connectionState.recordHeartbeat()
-      this.applyConnectedState(true)
+    if (message[0] === 0xf0) {
+      const name = decodeChannelNameSysEx(message)
+      if (name === null) return
+      const next = applyChannelName(this.mixerState, name)
+      if (next !== this.mixerState) {
+        this.mixerState = next
+        this.emit('stateChanged')
+      }
       return
     }
 
-    const next = applyStateNote(this.transportState, decoded.note, decoded.isOn)
-    if (next !== this.transportState) {
-      this.transportState = next
-      this.emit('stateChanged')
+    const decoded = decodeMidiMessage(message)
+    if (!decoded) return
+
+    if (decoded.channel === TRANSPORT_CHANNEL) {
+      if (decoded.note === TransportNote.Heartbeat) {
+        this.connectionState.recordHeartbeat()
+        this.applyConnectedState(true)
+        return
+      }
+
+      const next = applyStateNote(this.transportState, decoded.note, decoded.isOn)
+      if (next !== this.transportState) {
+        this.transportState = next
+        this.emit('stateChanged')
+      }
+      return
+    }
+
+    if (decoded.channel === MIXER_CHANNEL) {
+      const next = applyMixerStateNote(this.mixerState, decoded.note, decoded.isOn)
+      if (next !== this.mixerState) {
+        this.mixerState = next
+        this.emit('stateChanged')
+      }
     }
   }
 
@@ -217,9 +261,11 @@ export class MidiConnection extends EventEmitter {
     if (nowConnected === this.lastKnownConnected) return
     this.lastKnownConnected = nowConnected
     if (!nowConnected) {
-      // Cubase stopped responding; don't let a stale "Playing"/"Recording" linger
-      // next to a fresh "Disconnected" status.
+      // Cubase stopped responding; don't let stale "Playing"/"Recording" or
+      // stale Mute/Solo/channel-name state linger next to a fresh
+      // "Disconnected" status.
       this.transportState = createInitialTransportState()
+      this.mixerState = createInitialMixerState()
     }
     this.emit('stateChanged')
   }
