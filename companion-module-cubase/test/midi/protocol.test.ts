@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest'
 import {
   TRANSPORT_CHANNEL,
   MARKERS_CHANNEL,
+  MIXER_CHANNEL,
   TransportNote,
   MarkerNote,
+  MixerCC,
   encodeNoteOn,
   encodeNoteOff,
   encodeTrigger,
+  encodeControlChange,
+  encodeRelativeTick,
   decodeMidiMessage,
 } from '../../src/midi/protocol.js'
 
@@ -102,5 +106,27 @@ describe('decodeMidiMessage', () => {
 
   it('returns null for malformed (too short) messages', () => {
     expect(decodeMidiMessage([0x9f, 0])).toBeNull()
+  })
+})
+
+describe('Mixer protocol constants', () => {
+  it('uses zero-indexed channel 12 for MIDI channel 13 (Mixer)', () => {
+    expect(MIXER_CHANNEL).toBe(12)
+  })
+})
+
+describe('encodeControlChange', () => {
+  it('encodes a Control Change message', () => {
+    expect(encodeControlChange(MIXER_CHANNEL, MixerCC.VolumeDelta, 1)).toEqual([0xbc, 0, 1])
+  })
+})
+
+describe('encodeRelativeTick', () => {
+  it('encodes an "up" tick as value 1', () => {
+    expect(encodeRelativeTick(MIXER_CHANNEL, MixerCC.VolumeDelta, 1)).toEqual([0xbc, 0, 1])
+  })
+
+  it('encodes a "down" tick as value 65', () => {
+    expect(encodeRelativeTick(MIXER_CHANNEL, MixerCC.PanDelta, -1)).toEqual([0xbc, 1, 65])
   })
 })

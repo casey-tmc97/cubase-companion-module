@@ -4,6 +4,11 @@ export const TRANSPORT_CHANNEL = 15 // MIDI channel 16, zero-indexed
 // self-contained -- see ADR-006.
 export const MARKERS_CHANNEL = 14 // MIDI channel 15, zero-indexed
 
+// Dedicated channel for the Mixer phase section of the consolidated Cubase
+// script -- next available channel per ADR-006's per-phase convention
+// (Transport=15, Markers=14).
+export const MIXER_CHANNEL = 12 // MIDI channel 13, zero-indexed
+
 export enum TransportNote {
   Play = 0,
   Stop = 1,
@@ -52,6 +57,35 @@ export enum MarkerNote {
   ToMarker9 = 11,
 }
 
+// Mixer phase (Phase 2) note map, on MIXER_CHANNEL. Mute/Solo are toggles
+// with live feedback, so -- per ADR-004's split-note lesson -- each has a
+// separate trigger note (Companion -> Cubase) and *State note (Cubase ->
+// Companion); they must never share a note, or Cubase's own feedback output
+// loops back into its own input binding and re-triggers the toggle.
+export enum MixerNote {
+  ToggleMute = 0,
+  ToggleSolo = 1,
+  MuteState = 2,
+  SoloState = 3,
+}
+
+// Mixer phase relative-CC map, on MIXER_CHANNEL. Volume/Pan are discrete
+// relative steps (see the Phase 2 design spec), sent as a single CC message
+// per press using Cubase's relative-signed-bit encoding -- see
+// encodeRelativeTick below. One-directional (Companion -> Cubase only); no
+// level/position readout.
+export enum MixerCC {
+  VolumeDelta = 0,
+  PanDelta = 1,
+}
+
+// Relative-signed-bit tick values for a single-detent nudge: 1-63 means
+// "increment by that amount," 65-127 means "decrement by (value - 64)." A
+// single press/tick always sends a magnitude-1 nudge; Cubase's own binding
+// determines how much that actually moves the fader/pan.
+const RELATIVE_TICK_UP = 1
+const RELATIVE_TICK_DOWN = 65
+
 export interface DecodedNote {
   channel: number
   note: number
@@ -69,6 +103,14 @@ export function encodeNoteOff(channel: number, note: number): number[] {
 
 export function encodeTrigger(channel: number, note: number): number[][] {
   return [encodeNoteOn(channel, note), encodeNoteOff(channel, note)]
+}
+
+export function encodeControlChange(channel: number, controller: number, value: number): number[] {
+  return [0xb0 | channel, controller, value]
+}
+
+export function encodeRelativeTick(channel: number, controller: number, direction: 1 | -1): number[] {
+  return encodeControlChange(channel, controller, direction === 1 ? RELATIVE_TICK_UP : RELATIVE_TICK_DOWN)
 }
 
 // Transport-only: only TransportNote.Heartbeat and the *State notes are ever
