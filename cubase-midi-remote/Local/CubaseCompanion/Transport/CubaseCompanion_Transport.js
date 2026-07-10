@@ -45,6 +45,23 @@ var NOTE_TO_MARKER_7 = 9
 var NOTE_TO_MARKER_8 = 10
 var NOTE_TO_MARKER_9 = 11
 
+// Mixer (Phase 2) -- MIDI channel 13, zero-indexed 12. Selected-channel
+// control only (page.mHostAccess.mTrackSelection.mMixerChannel), not a
+// fixed bank -- see
+// docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md.
+var MIXER_CHANNEL = 12
+var NOTE_TOGGLE_MUTE = 0
+var NOTE_TOGGLE_SOLO = 1
+var NOTE_MUTE_STATE = 2
+var NOTE_SOLO_STATE = 3
+var CC_VOLUME_DELTA = 0
+var CC_PAN_DELTA = 1
+// Manufacturer ID 0x7D ("non-commercial/educational use" per the MIDI spec)
+// for the Selected Channel Name SysEx feedback -- must stay byte-for-byte
+// compatible with protocol.ts's encodeChannelNameSysEx/decodeChannelNameSysEx.
+var SYSEX_MANUFACTURER_ID = 0x7d
+var CHANNEL_NAME_MAX_LENGTH = 32
+
 // One device driver for the whole project (ADR-007) -- Cubase's MIDI Remote
 // will not bind two separate controllers to the same MIDI port pair, so every
 // phase lives in this one script on one port pair, differentiated only by
@@ -102,6 +119,16 @@ var btnToMarker7 = makeButton(9, 1)
 var btnToMarker8 = makeButton(10, 1)
 var btnToMarker9 = makeButton(11, 1)
 
+// Mixer buttons -- row 2, so they don't collide with Transport (row 0) or
+// Markers (row 1) now that all three phases share one surface. Only 4
+// buttons for 6 Companion actions: Volume Up/Down both target btnVolume's
+// single relative-CC binding (as do Pan Left/Right and btnPan) -- see the
+// Mixer design spec's MIDI mapping.
+var btnToggleMute = makeButton(0, 2)
+var btnToggleSolo = makeButton(1, 2)
+var btnVolume = makeButton(2, 2)
+var btnPan = makeButton(3, 2)
+
 // Play/Record/Cycle/Click are input-only here (no .setOutputPort()) --
 // Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings turned out
 // to send a noisy burst of 5-7 redundant, differently-encoded messages (mixed
@@ -133,6 +160,22 @@ btnToMarker6.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKE
 btnToMarker7.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_7)
 btnToMarker8.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_8)
 btnToMarker9.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_9)
+
+// Mute/Solo are input-only here, same reasoning as Play/Record/Cycle/Click
+// above -- Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings
+// sends a noisy multi-message burst; the explicit mOnProcessValueChange
+// feedback below sends exactly one message per real change instead.
+btnToggleMute.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MIXER_CHANNEL, NOTE_TOGGLE_MUTE)
+btnToggleSolo.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MIXER_CHANNEL, NOTE_TOGGLE_SOLO)
+
+// Volume/Pan are relative-encoder style: Companion sends a single CC tick
+// per press (value 1 = up/right, 65 = down/left -- see protocol.ts's
+// encodeRelativeTick), and setTypeRelativeSignedBit() tells Cubase to
+// interpret that as a relative nudge rather than an absolute position.
+// Input-only -- no level/position feedback, per the Mixer design spec's
+// Scope.
+btnVolume.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToControlChange(MIXER_CHANNEL, CC_VOLUME_DELTA).setTypeRelativeSignedBit()
+btnPan.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToControlChange(MIXER_CHANNEL, CC_PAN_DELTA).setTypeRelativeSignedBit()
 
 // One page for everything -- Steinberg MIDI Remote pages are for switching
 // between alternate mappings (e.g. banks) and are not all simultaneously
@@ -171,6 +214,14 @@ page.makeCommandBinding(btnToMarker7.mSurfaceValue, 'Transport', 'To Marker 7')
 page.makeCommandBinding(btnToMarker8.mSurfaceValue, 'Transport', 'To Marker 8')
 page.makeCommandBinding(btnToMarker9.mSurfaceValue, 'Transport', 'To Marker 9')
 
+// Mixer: selected-channel control only (no bank/zone) -- whatever track is
+// currently selected in Cubase, via mHostAccess.mTrackSelection.mMixerChannel.
+var selectedChannel = page.mHostAccess.mTrackSelection.mMixerChannel
+page.makeValueBinding(btnToggleMute.mSurfaceValue, selectedChannel.mValue.mMute).setTypeToggle()
+page.makeValueBinding(btnToggleSolo.mSurfaceValue, selectedChannel.mValue.mSolo).setTypeToggle()
+page.makeValueBinding(btnVolume.mSurfaceValue, selectedChannel.mValue.mVolume)
+page.makeValueBinding(btnPan.mSurfaceValue, selectedChannel.mValue.mPan)
+
 page.mOnActivate = function (activeDevice) {
   console.log('CubaseCompanion: page activated')
 }
@@ -188,10 +239,10 @@ page.mOnActivate = function (activeDevice) {
 // mOnProcessValueChange on MR_SurfaceElementValue (i.e. mSurfaceValue) -- it
 // isn't a real hook on host value objects at all, so that version silently
 // did nothing. This is the object the API actually supports.
-function bindStateFeedback(surfaceValue, note) {
+function bindStateFeedback(surfaceValue, channel, note) {
   surfaceValue.mOnProcessValueChange = function (activeDevice, value) {
-    var statusOn = 0x90 | TRANSPORT_CHANNEL
-    var statusOff = 0x80 | TRANSPORT_CHANNEL
+    var statusOn = 0x90 | channel
+    var statusOff = 0x80 | channel
     if (value >= 0.5) {
       midiOutput.sendMidi(activeDevice, [statusOn, note, 127])
     } else {
@@ -200,10 +251,37 @@ function bindStateFeedback(surfaceValue, note) {
   }
 }
 
-bindStateFeedback(btnPlay.mSurfaceValue, NOTE_PLAY_STATE)
-bindStateFeedback(btnRecord.mSurfaceValue, NOTE_RECORD_STATE)
-bindStateFeedback(btnCycle.mSurfaceValue, NOTE_CYCLE_STATE)
-bindStateFeedback(btnClick.mSurfaceValue, NOTE_CLICK_STATE)
+bindStateFeedback(btnPlay.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_PLAY_STATE)
+bindStateFeedback(btnRecord.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_RECORD_STATE)
+bindStateFeedback(btnCycle.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_CYCLE_STATE)
+bindStateFeedback(btnClick.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_CLICK_STATE)
+bindStateFeedback(btnToggleMute.mSurfaceValue, MIXER_CHANNEL, NOTE_MUTE_STATE)
+bindStateFeedback(btnToggleSolo.mSurfaceValue, MIXER_CHANNEL, NOTE_SOLO_STATE)
+
+// Selected Channel Name feedback -- SysEx (see the Mixer design spec's SysEx
+// section): plain Note/CC messages can't carry text, but a bound surface
+// value's mOnTitleChange fires with the underlying host object's title (here,
+// the selected channel's name) whenever it changes -- same "only documented
+// on mSurfaceValue" pattern already established for mOnProcessValueChange
+// above (see ADR-004's amendment) and confirmed against Steinberg's own
+// ExampleCompany_RealWorldDevice.js factory script's
+// faderStrip.fader.mSurfaceValue.mOnTitleChange usage. Bound to btnVolume
+// since it's the fader-equivalent control; ASCII-only, truncated to 32
+// characters -- must stay byte-for-byte compatible with protocol.ts's
+// encodeChannelNameSysEx.
+function toSafeAsciiByte(charCode) {
+  return charCode >= 0x20 && charCode <= 0x7e ? charCode : 0x3f
+}
+
+btnVolume.mSurfaceValue.mOnTitleChange = function (activeDevice, objectTitle) {
+  var truncated = objectTitle.substring(0, CHANNEL_NAME_MAX_LENGTH)
+  var bytes = [0xf0, SYSEX_MANUFACTURER_ID]
+  for (var i = 0; i < truncated.length; i++) {
+    bytes.push(toSafeAsciiByte(truncated.charCodeAt(i)))
+  }
+  bytes.push(0xf7)
+  midiOutput.sendMidi(activeDevice, bytes)
+}
 
 var lastHeartbeatSentAt = 0
 
