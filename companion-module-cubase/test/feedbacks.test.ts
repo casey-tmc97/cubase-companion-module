@@ -114,4 +114,16 @@ describe('UpdateFeedbacks', () => {
 
     expect(await definitions.selectedChannelName.callback({} as any)).toEqual({ text: 'No Channel Selected' })
   })
+
+  it('selectedChannelName feedback falls back to a placeholder when the channel name is an empty string', async () => {
+    const self = makeFakeSelf(
+      { playing: false, recording: false, cycleActive: false, clickActive: false },
+      false,
+      { muted: false, solo: false, selectedChannelName: '' },
+    )
+    UpdateFeedbacks(self as any)
+    const definitions = self.setFeedbackDefinitions.mock.calls[0][0]
+
+    expect(await definitions.selectedChannelName.callback({} as any)).toEqual({ text: 'No Channel Selected' })
+  })
 })

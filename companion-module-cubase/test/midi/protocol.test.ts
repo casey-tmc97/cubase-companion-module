@@ -98,7 +98,7 @@ describe('decodeMidiMessage', () => {
     expect(decodeMidiMessage([0x90, 0, 127])).toBeNull()
   })
 
-  it('returns null for messages on the Markers channel (decode is Transport-only; Markers has no incoming state)', () => {
+  it('returns null for messages on the Markers channel (decode is Transport/Mixer-only; Markers has no incoming state)', () => {
     expect(decodeMidiMessage([0x9e, 0, 127])).toBeNull()
   })
 

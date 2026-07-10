@@ -79,7 +79,7 @@ export function UpdateFeedbacks(self: ModuleLike): void {
       name: 'Selected Channel Name',
       description: "Shows the name of Cubase's currently selected mixer channel",
       options: [],
-      callback: async () => ({ text: self.midi.getMixerState().selectedChannelName ?? 'No Channel Selected' }),
+      callback: async () => ({ text: self.midi.getMixerState().selectedChannelName || 'No Channel Selected' }),
     },
   }
 
