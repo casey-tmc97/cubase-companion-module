@@ -1,6 +1,16 @@
 # ADR-006: Dedicated MIDI channel per phase script
 
-**Status:** Accepted (2026-07-09)
+**Status:** Superseded by [ADR-007](ADR-007-single-consolidated-cubase-script.md) (2026-07-09)
+
+> Live verification found that Cubase's MIDI Remote will not bind two separate
+> controllers (i.e. two separate scripts) to the same MIDI port pair, which is
+> exactly the topology this ADR's "own dedicated MIDI channel per phase
+> **script**" decision assumed. ADR-007 keeps this ADR's per-phase-*channel*
+> idea (still a good one, and still exactly how `MidiConnection.sendTrigger`
+> works today) but drops the per-phase-*script* part — all phases now share one
+> script, one device driver, one port pair, differentiated only by channel.
+
+**Status (original):** Accepted (2026-07-09)
 
 ## Context
 

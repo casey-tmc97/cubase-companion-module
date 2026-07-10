@@ -1,7 +1,7 @@
 # Cubase Companion Module — Markers (Phase 3) Design
 
 **Date:** 2026-07-09
-**Status:** Approved, ready for implementation planning
+**Status:** Companion-side implementation complete (Tasks 1-4, all reviewed clean) and unaffected by the amendment below. Cubase-side script (Task 5) is being merged into one consolidated script per [ADR-007](../../adr/ADR-007-single-consolidated-cubase-script.md) — see the 2026-07-09 amendment. Live verification (Task 8) pending that merge.
 
 ## Goal
 
@@ -96,8 +96,14 @@ New file: `cubase-midi-remote/Local/CubaseCompanion/Markers/CubaseCompanion_Mark
 
 ## Decision log
 
-- **Separate script per phase, not one consolidated script** — explicit project owner preference; keeps each phase's Cubase-side code independently reviewable.
-- **Shared MIDI port pair across phase scripts, not a new port per phase** — avoids asking the user to create and wire up a new virtual MIDI port for every phase; one Companion connection continues to carry all phases' traffic.
+- **Separate script per phase, not one consolidated script** — explicit project owner preference at design time. **Reversed — see 2026-07-09 amendment and [ADR-007](../../adr/ADR-007-single-consolidated-cubase-script.md).**
+- **Shared MIDI port pair across phase scripts, not a new port per phase** — avoids asking the user to create and wire up a new virtual MIDI port for every phase; one Companion connection continues to carry all phases' traffic. **Invalidated — see 2026-07-09 amendment below.**
 - **Dedicated MIDI channel per phase script (channel 14 for Markers), not continuing Transport's channel 15** — small extra step now, avoids any note-collision bookkeeping across phases as more are added later.
 - **No feedback for any marker action** — none of the twelve have a persistent boolean state the way Play/Record/Cycle/Click do; confirmed with the project owner rather than assumed.
 - **`To Marker N`, not `Set Marker N`** — the former jumps to an existing marker, the latter assigns/overwrites one; jumping is what "Go to Marker" means here.
+
+## Amendment (2026-07-09): shared MIDI port pair does not work in Cubase
+
+Tasks 1-8 were implemented, unit-tested, and each passed task-level review exactly as this spec describes. Live verification against real Cubase 15 (Task 8, Step 2) found that **Cubase's Studio Setup > MIDI Remote will not bind two separate controllers to the same MIDI port pair** — once "CubaseCompanion Transport" claims a port, that port disappears entirely from the selection dropdown for any other controller, including "CubaseCompanion Markers". Removing Transport's binding frees the port for Markers to claim, but then Transport can no longer be re-added to it — confirmed as an exclusive, one-controller-per-port restriction in Cubase's own UI, not a bug in either script or in `MidiConnection`. The underlying loopMIDI port itself supports multiple simultaneous listeners (this is what made the Phase 1 self-echo bug possible in the first place — see ADR-004), but Cubase's own controller-management layer does not allow two of *its own* device drivers to share one port pair regardless.
+
+This invalidates this spec's Architecture section and the "Shared MIDI port pair across phase scripts" decision above. **Superseded by [ADR-007](../../adr/ADR-007-single-consolidated-cubase-script.md):** rather than giving Markers its own port and a second `MidiConnection` (the dual-connection plan originally drafted here — discarded, see ADR-007's Context for why), the project moves to **one consolidated Cubase script for the whole project**, retiring the separate-script-per-phase idea entirely while keeping the per-phase-channel convention. All of Tasks 1-4's Companion-side code (the channel-aware protocol/connection/actions/presets changes) needed *zero* changes for this — it was already built around one connection with a channel parameter, per ADR-006. Only the Cubase side changes: `CubaseCompanion_Transport.js` and `CubaseCompanion_Markers.js` (Task 5) are merged into one `CubaseCompanion.js`, one device driver, one port pair, still split internally by channel (Transport=15, Markers=14). See ADR-007 for the full decision and consequences.

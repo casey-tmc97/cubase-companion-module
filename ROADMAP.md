@@ -1,8 +1,8 @@
 # Roadmap
 
-## Phase 1: Transport — Done, unverified against real Cubase
+## Phase 1: Transport — Done, verified against real Cubase 15
 
-Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-transport-first.md)). Implemented and unit-tested (42/42 tests, clean build):
+Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-transport-first.md)). Implemented, unit-tested, and confirmed working end-to-end against real Cubase 15 (see [ADR-004](docs/adr/ADR-004-fixed-midi-note-contract.md)'s 2026-07-09 amendment for the real-world bugs found and fixed during that verification):
 
 - [x] Companion module scaffold, config, MIDI I/O layer
 - [x] Actions: Play, Stop, Record, Return to Zero, Toggle Cycle, Toggle Click, Rewind, Forward
@@ -10,16 +10,16 @@ Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-tran
 - [x] Presets pairing each action with its matching feedback
 - [x] Cubase MIDI Remote driver script
 - [x] Heartbeat-based connection status, correctly detecting both connect *and* disconnect
-- [ ] **Verified against a real Cubase 15 instance** — see [DEPLOYMENT.md](DEPLOYMENT.md)'s checklist. This is the next concrete step before Phase 1 can be considered actually done, not just built.
+- [x] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-transport-setup.md](docs/cubase-companion-transport-setup.md)'s checklist.
 
 ## Phase 2: Mixer channel control — Not started
 
 Per-channel mute, solo, fader volume, pan for specific tracks/channels (e.g. "mute vocal track"). Will need its own spec (design questions: how are channels addressed — by name, by index, by selection? does fader volume need a rotary/relative encoder input, or discrete up/down actions?) before implementation.
 
-## Phase 3: Markers & locators — In progress
+## Phase 3: Markers & locators — Blocked on architecture rework
 
-- [x] Add Marker, Next/Previous Marker, To Marker 1-9 — see [design spec](docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md) and [ADR-006](docs/adr/ADR-006-channel-per-phase-script.md)
-- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-markers-setup.md](docs/cubase-companion-markers-setup.md)'s checklist.
+- [x] Add Marker, Next/Previous Marker, To Marker 1-9 implemented, unit-tested, and task-reviewed clean — see [design spec](docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md) and [ADR-006](docs/adr/ADR-006-channel-per-phase-script.md)
+- [ ] **BLOCKED: live verification against real Cubase 15.** Found that Cubase will not bind two MIDI Remote controllers to the same port pair, invalidating this phase's "share Transport's MIDI port" design decision. See the design spec's 2026-07-09 amendment for the resume plan (Markers needs its own dedicated MIDI port pair and its own `MidiConnection` in the module, not a shared one). Not yet implemented.
 - [ ] Cycle markers, punch in/out points, named marker assignment (`Set Marker N`) — out of scope for this pass, could extend the same pattern later.
 
 ## Phase 4: Track/selection & macros — Not started
