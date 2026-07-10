@@ -56,6 +56,31 @@ export function UpdateFeedbacks(self: ModuleLike): void {
       options: [],
       callback: async () => self.midi.isConnected(),
     },
+    // Mixer (Phase 2) -- see
+    // docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md.
+    muteActive: {
+      type: 'boolean',
+      name: 'Mute Active',
+      description: 'True while the selected channel is muted in Cubase',
+      defaultStyle: activeStyle,
+      options: [],
+      callback: async () => self.midi.getMixerState().muted,
+    },
+    soloActive: {
+      type: 'boolean',
+      name: 'Solo Active',
+      description: 'True while the selected channel is soloed in Cubase',
+      defaultStyle: activeStyle,
+      options: [],
+      callback: async () => self.midi.getMixerState().solo,
+    },
+    selectedChannelName: {
+      type: 'advanced',
+      name: 'Selected Channel Name',
+      description: "Shows the name of Cubase's currently selected mixer channel",
+      options: [],
+      callback: async () => ({ text: self.midi.getMixerState().selectedChannelName ?? 'No Channel Selected' }),
+    },
   }
 
   self.setFeedbackDefinitions(definitions)
