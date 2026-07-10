@@ -12,9 +12,15 @@ Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-tran
 - [x] Heartbeat-based connection status, correctly detecting both connect *and* disconnect
 - [x] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. Fully re-verified against the consolidated script on 2026-07-10, after resolving two deployment issues (script registration reuse and a stale Mapping Page selector — see [ADR-008](docs/adr/ADR-008-reuse-transport-registration-slot.md)).
 
-## Phase 2: Mixer channel control — Not started
+## Phase 2: Mixer channel control — Implemented, pending live verification against real Cubase 15
 
-Per-channel mute, solo, fader volume, pan for specific tracks/channels (e.g. "mute vocal track"). Will need its own spec (design questions: how are channels addressed — by name, by index, by selection? does fader volume need a rotary/relative encoder input, or discrete up/down actions?) before implementation.
+Selected-channel Mute, Solo, Volume (relative step), Pan (relative step), and a Selected Channel Name feedback — see [design spec](docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md) and [implementation plan](docs/superpowers/plans/2026-07-10-cubase-companion-mixer.md):
+
+- [x] Actions: Toggle Mute, Toggle Solo, Volume Up, Volume Down, Pan Left, Pan Right
+- [x] Feedbacks: Mute Active, Solo Active, Selected Channel Name
+- [x] Presets pairing Mute/Solo with their feedback; standalone Volume/Pan/name presets
+- [x] Cubase MIDI Remote script: selected-channel bindings on MIDI channel 13, relative-CC volume/pan, SysEx channel-name feedback
+- [ ] **Verified against a real Cubase 15 instance** — pending; see Task 9's live-verification checklist in [the implementation plan](docs/superpowers/plans/2026-07-10-cubase-companion-mixer.md).
 
 ## Phase 3: Markers & locators — Done, verified against real Cubase 15
 
