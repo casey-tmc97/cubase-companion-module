@@ -49,7 +49,18 @@ var NOTE_TO_MARKER_9 = 11
 // will not bind two separate controllers to the same MIDI port pair, so every
 // phase lives in this one script on one port pair, differentiated only by
 // channel (see the per-phase channel constants above).
-var deviceDriver = midiremote_api.makeDeviceDriver('CubaseCompanion', 'Controller', 'companion-module-cubase')
+//
+// Registered as vendor 'CubaseCompanion' / model 'Transport' -- not a typo
+// and not actually about Transport specifically anymore. Cubase 15's MIDI
+// Remote Local-script discovery stopped registering any new vendor/model
+// pair on this install (confirmed via extensive live testing: fresh vendor
+// folders, fresh model names, fresh minimal content, a full preferences
+// reset, and a full OS reboot candidate were all ruled out one at a time --
+// see ADR-008). The one pairing that still works is this exact one, because
+// it already has a saved MIDI Controller instance from Phase 1 that Cubase
+// re-resolves against this file path without needing fresh discovery. Reusing
+// it is the pragmatic unblock; see ADR-008 before renaming this again.
+var deviceDriver = midiremote_api.makeDeviceDriver('CubaseCompanion', 'Transport', 'companion-module-cubase')
 
 var midiInput = deviceDriver.mPorts.makeMidiInput()
 var midiOutput = deviceDriver.mPorts.makeMidiOutput()

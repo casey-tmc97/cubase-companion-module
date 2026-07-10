@@ -10,7 +10,7 @@ Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-tran
 - [x] Presets pairing each action with its matching feedback
 - [x] Cubase MIDI Remote driver script
 - [x] Heartbeat-based connection status, correctly detecting both connect *and* disconnect
-- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. Previously verified under the prior two-script architecture; needs re-verification against the consolidated script (see [ADR-007](docs/adr/ADR-007-single-consolidated-cubase-script.md)).
+- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. Core control loop (Play) confirmed working end-to-end against the consolidated script after resolving two deployment issues (script registration reuse and a stale Mapping Page selector — see [ADR-008](docs/adr/ADR-008-reuse-transport-registration-slot.md)); the full itemized checklist (feedback states, Rewind/Forward hold, disconnect detection) still needs a walk-through pass.
 
 ## Phase 2: Mixer channel control — Not started
 
@@ -19,7 +19,7 @@ Per-channel mute, solo, fader volume, pan for specific tracks/channels (e.g. "mu
 ## Phase 3: Markers & locators — In progress
 
 - [x] Add Marker, Next/Previous Marker, To Marker 1-9 implemented, unit-tested, and task-reviewed clean — see [design spec](docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md) and [ADR-006](docs/adr/ADR-006-channel-per-phase-script.md)
-- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. The port-sharing blocker is resolved by consolidating to one script ([ADR-007](docs/adr/ADR-007-single-consolidated-cubase-script.md)); pending a live verification pass.
+- [ ] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. The port-sharing blocker is resolved by consolidating to one script ([ADR-007](docs/adr/ADR-007-single-consolidated-cubase-script.md)). Add Marker and Next/Previous Marker confirmed working end-to-end in a smoke test after resolving a script-registration and Mapping Page issue (see [ADR-008](docs/adr/ADR-008-reuse-transport-registration-slot.md)); To Marker 1-9 and the invalid-marker-number case still need a pass.
 - [ ] Cycle markers, punch in/out points, named marker assignment (`Set Marker N`) — out of scope for this pass, could extend the same pattern later.
 
 ## Phase 4: Track/selection & macros — Not started
