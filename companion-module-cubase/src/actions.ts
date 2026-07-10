@@ -4,14 +4,16 @@ import type {
   CompanionPresetDefinitions,
   CompanionPresetSection,
 } from '@companion-module/base'
-import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from './midi/protocol.js'
+import { TransportNote, MarkerNote, MixerNote, MixerCC, TRANSPORT_CHANNEL, MARKERS_CHANNEL, MIXER_CHANNEL } from './midi/protocol.js'
 
 export interface ModuleLike {
   midi: {
     sendTrigger(channel: number, note: number): void
     sendNoteOn(note: number): void
     sendNoteOff(note: number): void
+    sendRelativeCC(channel: number, controller: number, direction: 1 | -1): void
     getTransportState(): { playing: boolean; recording: boolean; cycleActive: boolean; clickActive: boolean }
+    getMixerState(): { muted: boolean; solo: boolean; selectedChannelName: string | null }
     isConnected(): boolean
   }
   setActionDefinitions(definitions: CompanionActionDefinitions): void
@@ -161,6 +163,42 @@ export function UpdateActions(self: ModuleLike): void {
       name: 'To Marker 9',
       options: [],
       callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker9),
+    },
+    // Mixer (Phase 2): selected-channel control only -- see
+    // docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md.
+    // Mute/Solo are toggles with feedback (paired feedbacks below in
+    // feedbacks.ts); Volume/Pan are relative single-tick nudges, matching a
+    // real rotary encoder detent and working with Stream Deck+ dial
+    // Rotate Left/Right triggers with no special module-side handling.
+    toggleMute: {
+      name: 'Toggle Mute',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MIXER_CHANNEL, MixerNote.ToggleMute),
+    },
+    toggleSolo: {
+      name: 'Toggle Solo',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MIXER_CHANNEL, MixerNote.ToggleSolo),
+    },
+    volumeUp: {
+      name: 'Volume Up',
+      options: [],
+      callback: async () => self.midi.sendRelativeCC(MIXER_CHANNEL, MixerCC.VolumeDelta, 1),
+    },
+    volumeDown: {
+      name: 'Volume Down',
+      options: [],
+      callback: async () => self.midi.sendRelativeCC(MIXER_CHANNEL, MixerCC.VolumeDelta, -1),
+    },
+    panLeft: {
+      name: 'Pan Left',
+      options: [],
+      callback: async () => self.midi.sendRelativeCC(MIXER_CHANNEL, MixerCC.PanDelta, -1),
+    },
+    panRight: {
+      name: 'Pan Right',
+      options: [],
+      callback: async () => self.midi.sendRelativeCC(MIXER_CHANNEL, MixerCC.PanDelta, 1),
     },
   }
 

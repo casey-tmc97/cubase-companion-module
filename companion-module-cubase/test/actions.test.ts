@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { UpdateActions } from '../src/actions.js'
-import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from '../src/midi/protocol.js'
+import { TransportNote, MarkerNote, MixerNote, MixerCC, TRANSPORT_CHANNEL, MARKERS_CHANNEL, MIXER_CHANNEL } from '../src/midi/protocol.js'
 
 function makeFakeSelf() {
   return {
@@ -8,7 +8,9 @@ function makeFakeSelf() {
       sendTrigger: vi.fn(),
       sendNoteOn: vi.fn(),
       sendNoteOff: vi.fn(),
+      sendRelativeCC: vi.fn(),
       getTransportState: vi.fn(),
+      getMixerState: vi.fn(),
       isConnected: vi.fn(),
     },
     setActionDefinitions: vi.fn(),
@@ -47,6 +49,12 @@ describe('UpdateActions', () => {
         'toMarker7',
         'toMarker8',
         'toMarker9',
+        'toggleMute',
+        'toggleSolo',
+        'volumeUp',
+        'volumeDown',
+        'panLeft',
+        'panRight',
       ].sort(),
     )
   })
@@ -222,5 +230,65 @@ describe('UpdateActions', () => {
     await definitions[actionId].callback({} as any)
 
     expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote[noteKey])
+  })
+
+  it('toggleMute action sends a trigger on MIXER_CHANNEL, ToggleMute note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.toggleMute.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MIXER_CHANNEL, MixerNote.ToggleMute)
+  })
+
+  it('toggleSolo action sends a trigger on MIXER_CHANNEL, ToggleSolo note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.toggleSolo.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MIXER_CHANNEL, MixerNote.ToggleSolo)
+  })
+
+  it('volumeUp action sends an "up" relative tick on the Volume CC', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.volumeUp.callback({} as any)
+
+    expect(self.midi.sendRelativeCC).toHaveBeenCalledWith(MIXER_CHANNEL, MixerCC.VolumeDelta, 1)
+  })
+
+  it('volumeDown action sends a "down" relative tick on the Volume CC', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.volumeDown.callback({} as any)
+
+    expect(self.midi.sendRelativeCC).toHaveBeenCalledWith(MIXER_CHANNEL, MixerCC.VolumeDelta, -1)
+  })
+
+  it('panLeft action sends a "down" relative tick on the Pan CC', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.panLeft.callback({} as any)
+
+    expect(self.midi.sendRelativeCC).toHaveBeenCalledWith(MIXER_CHANNEL, MixerCC.PanDelta, -1)
+  })
+
+  it('panRight action sends an "up" relative tick on the Pan CC', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.panRight.callback({} as any)
+
+    expect(self.midi.sendRelativeCC).toHaveBeenCalledWith(MIXER_CHANNEL, MixerCC.PanDelta, 1)
   })
 })
