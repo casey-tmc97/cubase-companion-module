@@ -80,6 +80,8 @@ const MARKER_PRESET_IDS = [
   'toMarker9',
 ] as const
 
+const MIXER_PRESET_IDS = ['toggleMute', 'toggleSolo', 'volumeUp', 'volumeDown', 'panLeft', 'panRight', 'selectedChannelName'] as const
+
 export function UpdatePresets(self: ModuleLike): void {
   const presets: CompanionPresetDefinitions = {
     play: preset('Play', 'play', 'playing'),
@@ -102,6 +104,25 @@ export function UpdatePresets(self: ModuleLike): void {
     toMarker7: preset('To Marker 7', 'toMarker7'),
     toMarker8: preset('To Marker 8', 'toMarker8'),
     toMarker9: preset('To Marker 9', 'toMarker9'),
+    toggleMute: preset('Mute', 'toggleMute', 'muteActive'),
+    toggleSolo: preset('Solo', 'toggleSolo', 'soloActive'),
+    volumeUp: preset('Volume Up', 'volumeUp'),
+    volumeDown: preset('Volume Down', 'volumeDown'),
+    panLeft: preset('Pan Left', 'panLeft'),
+    panRight: preset('Pan Right', 'panRight'),
+    // No action -- pure display, same shape as cubaseConnected below.
+    selectedChannelName: {
+      type: 'simple',
+      name: 'Selected Channel Name',
+      style: {
+        text: 'Channel',
+        size: '14',
+        color: combineRgb(255, 255, 255),
+        bgcolor: combineRgb(0, 0, 0),
+      },
+      steps: [{ down: [], up: [] }],
+      feedbacks: [{ feedbackId: 'selectedChannelName', options: {}, style: {} }],
+    },
     cubaseConnected: {
       type: 'simple',
       name: 'Cubase Connected',
@@ -126,6 +147,11 @@ export function UpdatePresets(self: ModuleLike): void {
       id: 'markers',
       name: 'Markers',
       definitions: [...MARKER_PRESET_IDS],
+    },
+    {
+      id: 'mixer',
+      name: 'Mixer',
+      definitions: [...MIXER_PRESET_IDS],
     },
     {
       id: 'status',
