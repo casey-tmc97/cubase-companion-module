@@ -12,7 +12,7 @@ Architecture proving ground (see [ADR-003](docs/adr/ADR-003-phased-delivery-tran
 - [x] Heartbeat-based connection status, correctly detecting both connect *and* disconnect
 - [x] **Verified against a real Cubase 15 instance** — see [docs/cubase-companion-setup.md](docs/cubase-companion-setup.md)'s checklist. Fully re-verified against the consolidated script on 2026-07-10, after resolving two deployment issues (script registration reuse and a stale Mapping Page selector — see [ADR-008](docs/adr/ADR-008-reuse-transport-registration-slot.md)).
 
-## Phase 2: Mixer channel control — Implemented, pending live verification against real Cubase 15
+## Phase 2: Mixer channel control — Done, verified against real Cubase 15
 
 Selected-channel Mute, Solo, Volume (relative step), Pan (relative step), and a Selected Channel Name feedback — see [design spec](docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md) and [implementation plan](docs/superpowers/plans/2026-07-10-cubase-companion-mixer.md):
 
@@ -20,7 +20,8 @@ Selected-channel Mute, Solo, Volume (relative step), Pan (relative step), and a 
 - [x] Feedbacks: Mute Active, Solo Active, Selected Channel Name
 - [x] Presets pairing Mute/Solo with their feedback; standalone Volume/Pan/name presets
 - [x] Cubase MIDI Remote script: selected-channel bindings on MIDI channel 13, relative-CC volume/pan, SysEx channel-name feedback
-- [ ] **Verified against a real Cubase 15 instance** — pending; see Task 9's live-verification checklist in [the implementation plan](docs/superpowers/plans/2026-07-10-cubase-companion-mixer.md).
+- [x] **Verified against a real Cubase 15 instance** — Mute, Solo, Volume, and Pan confirmed working live on 2026-07-10.
+- [ ] Read, Write (automation read/write), Record Enable, Monitor, Listen, and Edit Channel Settings — out of scope for this pass, flagged by the project owner during live verification as needed in a follow-up phase. Could extend the same selected-channel pattern (`page.mHostAccess.mTrackSelection.mMixerChannel`) this phase already established: Cubase's MIDI Remote API already exposes `mRecordEnable`, `mMonitorEnable`, `mAutomationRead`, and `mAutomationWrite` directly on `MR_MixerChannelValues` — the same host object Mute/Solo/Volume/Pan already bind to. "Listen" (channel AFL/PFL) and "Edit Channel Settings" (opening the channel's settings/inspector) weren't found in that same object during this phase's API research and need their own lookup when this is picked up.
 
 ## Phase 3: Markers & locators — Done, verified against real Cubase 15
 
