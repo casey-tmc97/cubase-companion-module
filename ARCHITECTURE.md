@@ -5,7 +5,7 @@
 **Goals**
 - Control Cubase's transport from Companion/Stream Deck with live two-way feedback.
 - Avoid depending on Cubase iC Pro's undocumented network protocol.
-- Establish an architecture Phase 2+ (Mixer, Markers, Track/Macros, Control Room) can extend without redesign.
+- Establish an architecture a future full MIDI Remote API implementation pass can extend without redesign.
 
 **Constraints**
 - Cubase's MIDI Remote API (12+) only exposes what its scripting layer exposes — not the full iC Pro feature set.
@@ -14,7 +14,6 @@
 
 **Risks**
 - The Cubase-side script cannot be automatically tested (no live Cubase in CI or in this dev environment) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the manual verification this requires.
-- One binding (`Return to Zero`, via `makeCommandBinding`) uses a Cubase key-command name not confirmed against a real installation.
 - Real installed library versions (`@companion-module/base`, `@julusian/midi`) can diverge from whatever documentation/training data informed the original design — this already happened three times during implementation (see [docs/adr/](docs/adr/) and `.superpowers/sdd/` task reports for the specifics) and was caught by verifying against installed package sources, not by trusting assumptions.
 
 **Assumptions**
@@ -97,21 +96,17 @@ Same-machine and cross-machine topology use identical code on both sides — nei
 
 ## MIDI protocol (the informal contract between the two halves)
 
-Fixed on MIDI channel 16 (zero-indexed 15), defined in `companion-module-cubase/src/midi/protocol.ts` and mirrored by convention (not shared code) in the Cubase-side script:
+Two dedicated MIDI channels, defined in `companion-module-cubase/src/midi/protocol.ts` and mirrored by convention (not shared code) in the Cubase-side script:
 
-| Function | Note # | Direction |
-|---|---|---|
-| Play | 0 | both (trigger + state) |
-| Stop | 1 | Companion→Cubase |
-| Record | 2 | both |
-| Return to Zero | 3 | Companion→Cubase |
-| Cycle | 4 | both |
-| Click | 5 | both |
-| Rewind | 6 | Companion→Cubase |
-| Forward | 7 | Companion→Cubase |
-| Heartbeat | 9 | Cubase→Companion, ~every 2s |
+| Function | Channel | Note # | Direction |
+|---|---|---|---|
+| Play | Transport (zero-indexed 15 / MIDI ch. 16) | 0 | both (trigger + state) |
+| Stop | Transport | 1 | Companion→Cubase |
+| Record | Transport | 2 | both |
+| Heartbeat | Transport | 9 | Cubase→Companion, ~every 2s |
+| Add Marker | Markers (zero-indexed 14 / MIDI ch. 15) | 0 | Companion→Cubase |
 
-Full rationale for this design in [docs/adr/ADR-004-fixed-midi-note-contract.md](docs/adr/ADR-004-fixed-midi-note-contract.md).
+Full rationale for this design in [docs/adr/ADR-004-fixed-midi-note-contract.md](docs/adr/ADR-004-fixed-midi-note-contract.md) and [ADR-006](docs/adr/ADR-006-channel-per-phase-script.md).
 
 ## Folder Structure
 
@@ -145,7 +140,7 @@ Cubase Companion Module/
 │   │       ├── connectionState.ts            # pure: heartbeat timeout state machine
 │   │       ├── ports.ts                      # thin: list real MIDI port names
 │   │       └── connection.ts                 # thin: real MIDI I/O, wires the pure modules together
-│   └── test/                                 # Vitest unit tests (42 tests, pure-logic modules only)
+│   └── test/                                 # Vitest unit tests (56 tests, pure-logic modules only)
 └── cubase-midi-remote/
     └── Local/CubaseCompanion/Transport/
         └── CubaseCompanion_Transport.js       # the Cubase-side MIDI Remote driver script

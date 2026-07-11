@@ -4,7 +4,24 @@ All notable changes to this project are documented in this file. Format follows 
 
 ## [Unreleased]
 
-- Manual verification against a real Cubase 15 instance (see [DEPLOYMENT.md](DEPLOYMENT.md)'s checklist) — not yet executed.
+## [1.0.0] - 2026-07-11
+
+First complete, scoped release — see [ROADMAP.md](ROADMAP.md).
+
+### Changed
+
+- Scoped the module down to four actions — Play, Stop, Record, Add Marker — as the complete v1.0 feature set. Broader MIDI Remote API coverage (Mixer control, extended transport, extended markers, track/selection, control room) is deferred to a future full-API implementation pass; see the [2026-07-11 scope-trim design spec](docs/superpowers/specs/2026-07-11-cubase-companion-v1-scope-trim-design.md) for the full rationale.
+
+### Added
+
+- Action: Add Marker (new since 0.1.0, carried over from the since-trimmed Phase 3 Markers work).
+- All four actions (Play, Stop, Record, Add Marker) verified against a real Cubase 15 instance.
+
+### Removed
+
+- Actions: Return to Zero, Toggle Cycle, Toggle Click, Rewind, Forward, Next Marker, Previous Marker, To Marker 1-9, Toggle Mute, Toggle Solo, Volume Up, Volume Down, Pan Left, Pan Right.
+- Feedbacks: Cycle Active, Click Active, Mute Active, Solo Active, Selected Channel Name.
+- Mixer channel control entirely (`mixerState.ts`, MIDI channel 13 protocol, SysEx channel-name feedback).
 
 ## [0.1.0] - 2026-07-08
 

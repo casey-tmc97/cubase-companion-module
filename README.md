@@ -1,8 +1,8 @@
 # Cubase Companion Module
 
-Control Steinberg Cubase's transport from [Bitfocus Companion](https://bitfocus.io/companion) / Stream Deck, with live two-way feedback, via Cubase's official MIDI Remote API — no reverse-engineering, no undocumented protocol.
+Control Steinberg Cubase's transport and markers from [Bitfocus Companion](https://bitfocus.io/companion) / Stream Deck, with live two-way feedback, via Cubase's official MIDI Remote API — no reverse-engineering, no undocumented protocol.
 
-**Status:** Phase 1 (Transport) implemented and unit-tested. **Not yet verified against a real Cubase instance** — see [Known Limitations](#known-limitations) below.
+**Status:** v1.0.0 — Play, Stop, Record, and Add Marker implemented, unit-tested, and verified against a real Cubase 15 instance.
 
 ## What this is
 
@@ -12,7 +12,7 @@ Two independent pieces connected by a plain MIDI port pair:
 Companion (companion-module-cubase)  <--MIDI-->  virtual/network MIDI port  <--MIDI-->  Cubase (MIDI Remote script)
 ```
 
-- **`companion-module-cubase/`** — a Bitfocus Companion module (TypeScript, `@companion-module/base` + `@julusian/midi`) with named actions, presets, and feedbacks for Play, Stop, Record, Return to Zero, Cycle, Click, Rewind, and Forward.
+- **`companion-module-cubase/`** — a Bitfocus Companion module (TypeScript, `@companion-module/base` + `@julusian/midi`) with named actions, presets, and feedbacks for Play, Stop, Record, and Add Marker.
 - **`cubase-midi-remote/`** — a JavaScript driver script for Cubase's documented MIDI Remote API (12+), placed in Cubase's Driver Scripts folder.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the two halves talk to each other, and [DEPLOYMENT.md](DEPLOYMENT.md) for how to install and run it.
@@ -34,10 +34,7 @@ Cubase iC Pro talks to Cubase over an undocumented protocol (via the "Steinberg 
 
 ## Known Limitations
 
-This has been built and unit-tested (42/42 tests passing, clean TypeScript build) entirely in a sandboxed dev environment with **no live Cubase instance, no real MIDI hardware, and no virtual MIDI driver available**. Everything beyond `npm run build` / `npm test` / `tsc --noEmit` is unverified. Before relying on this:
-
-1. Walk through [DEPLOYMENT.md](DEPLOYMENT.md)'s verification checklist against a real Cubase 15 install.
-2. In particular, the Cubase-side script's Return-to-Zero binding (`page.makeCommandBinding(..., 'Transport', 'Return to Zero')`) uses a Cubase key-command name that hasn't been confirmed against a real Cubase Key Commands dialog — check it, and fix the category/name if it doesn't match your version.
+- Verified only on Windows with same-machine loopMIDI; macOS/Linux and cross-machine rtpMIDI/AppleMIDI topologies are untested (nothing in the architecture is platform-specific — see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 ## License
 

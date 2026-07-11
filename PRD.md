@@ -10,7 +10,7 @@ Plugin — a Bitfocus Companion module, paired with a companion Cubase MIDI Remo
 
 ## Purpose
 
-Let Bitfocus Companion (and therefore Stream Deck / other button surfaces) control and reflect Steinberg Cubase's state — starting with the transport (Play, Stop, Record, Return to Zero, Cycle, Click, Rewind, Forward) — with live two-way feedback, without depending on Cubase iC Pro's undocumented network protocol.
+Let Bitfocus Companion (and therefore Stream Deck / other button surfaces) control and reflect Steinberg Cubase's state — Play, Stop, Record, and Add Marker — with live two-way feedback, without depending on Cubase iC Pro's undocumented network protocol.
 
 ## Target Users
 
@@ -18,11 +18,11 @@ Personal use: the project owner, running Cubase and Companion (same machine or a
 
 ## Primary Features
 
-1. **Transport control** — Play, Stop, Record, Return to Zero, Rewind, Forward as named Companion actions.
-2. **Toggle control with feedback** — Cycle (loop) and Click (metronome) as toggle actions whose Companion buttons reflect Cubase's actual current state.
-3. **Live state feedback** — Playing, Recording, Stopped, Cycle Active, Click Active feedbacks that update the instant Cubase's state changes, in either direction (button press or Cubase's own transport bar).
+1. **Transport control** — Play, Stop, Record as named Companion actions.
+2. **Marker control** — Add Marker as a named Companion action.
+3. **Live state feedback** — Playing, Recording, Stopped feedbacks that update the instant Cubase's state changes, in either direction (button press or Cubase's own transport bar).
 4. **Connection status** — a "Cubase Connected" feedback driven by a heartbeat, so a stale/disconnected bridge is visible rather than silently stuck.
-5. **Ready-made presets** — one preset per action, pre-wired to its matching feedback, so setup doesn't require hand-configuring raw MIDI note numbers.
+5. **Ready-made presets** — one preset per action, pre-wired to its matching feedback where applicable, so setup doesn't require hand-configuring raw MIDI note numbers.
 
 ## Non-Functional Requirements
 
@@ -35,14 +35,9 @@ Personal use: the project owner, running Cubase and Companion (same machine or a
 
 ## Out of Scope (Future Phases)
 
-Four additional feature areas were identified during design but are explicitly out of scope for the current implementation, each planned as its own future spec → plan → implementation cycle, reusing this project's architecture:
+This v1.0 release intentionally covers only Play, Stop, Record, and Add Marker. A broader set of feature areas were built, unit-tested, and (mostly) verified live during earlier development, then deliberately trimmed back out for this release: extended transport (Return to Zero, Cycle, Click, Rewind, Forward), extended markers (Next/Previous Marker, To Marker 1-9, cycle markers, punch in/out), Mixer channel control (mute, solo, fader volume, pan), track/selection & macros, and control room operations. Each is planned as its own future spec → plan → implementation cycle when a full MIDI Remote API implementation is undertaken.
 
-- Mixer channel control (mute, solo, fader volume, pan)
-- Markers & locators (cycle markers, punch in/out, named markers)
-- Track/selection & macros (track select, key command/macro triggers, record-arm)
-- Control room operations
-
-See [ROADMAP.md](ROADMAP.md) for status.
+See [ROADMAP.md](ROADMAP.md) for status and the [2026-07-11 scope-trim design spec](docs/superpowers/specs/2026-07-11-cubase-companion-v1-scope-trim-design.md) for why this was trimmed back after already being built.
 
 ## Success Criteria
 
