@@ -32,22 +32,6 @@ export function UpdateFeedbacks(self: ModuleLike): void {
       options: [],
       callback: async () => isStopped(self.midi.getTransportState()),
     },
-    cycleActive: {
-      type: 'boolean',
-      name: 'Cycle Active',
-      description: 'True when Cycle/Loop is enabled in Cubase',
-      defaultStyle: activeStyle,
-      options: [],
-      callback: async () => self.midi.getTransportState().cycleActive,
-    },
-    clickActive: {
-      type: 'boolean',
-      name: 'Click Active',
-      description: 'True when the Metronome/Click is enabled in Cubase',
-      defaultStyle: activeStyle,
-      options: [],
-      callback: async () => self.midi.getTransportState().clickActive,
-    },
     cubaseConnected: {
       type: 'boolean',
       name: 'Cubase Connected',
@@ -55,31 +39,6 @@ export function UpdateFeedbacks(self: ModuleLike): void {
       defaultStyle: connectedStyle,
       options: [],
       callback: async () => self.midi.isConnected(),
-    },
-    // Mixer (Phase 2) -- see
-    // docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md.
-    muteActive: {
-      type: 'boolean',
-      name: 'Mute Active',
-      description: 'True while the selected channel is muted in Cubase',
-      defaultStyle: activeStyle,
-      options: [],
-      callback: async () => self.midi.getMixerState().muted,
-    },
-    soloActive: {
-      type: 'boolean',
-      name: 'Solo Active',
-      description: 'True while the selected channel is soloed in Cubase',
-      defaultStyle: activeStyle,
-      options: [],
-      callback: async () => self.midi.getMixerState().solo,
-    },
-    selectedChannelName: {
-      type: 'advanced',
-      name: 'Selected Channel Name',
-      description: "Shows the name of Cubase's currently selected mixer channel",
-      options: [],
-      callback: async () => ({ text: self.midi.getMixerState().selectedChannelName || 'No Channel Selected' }),
     },
   }
 
