@@ -1,15 +1,10 @@
 var midiremote_api = require('midiremote_api_v1')
 
-// Transport (Phase 1) -- MIDI channel 16, zero-indexed 15.
+// Transport -- MIDI channel 16, zero-indexed 15.
 var TRANSPORT_CHANNEL = 15
 var NOTE_PLAY = 0
 var NOTE_STOP = 1
 var NOTE_RECORD = 2
-var NOTE_RETURN_TO_ZERO = 3
-var NOTE_CYCLE = 4
-var NOTE_CLICK = 5
-var NOTE_REWIND = 6
-var NOTE_FORWARD = 7
 var NOTE_HEARTBEAT = 9
 // Dedicated state-feedback notes (Cubase -> Companion only), separate from the
 // trigger notes above (Companion -> Cubase). Feedback used to share the same
@@ -22,45 +17,15 @@ var NOTE_HEARTBEAT = 9
 // own input binding is listening for. See ADR-004.
 var NOTE_PLAY_STATE = 10
 var NOTE_RECORD_STATE = 11
-var NOTE_CYCLE_STATE = 12
-var NOTE_CLICK_STATE = 13
 var HEARTBEAT_INTERVAL_MS = 2000
 
-// Markers (Phase 3) -- MIDI channel 15, zero-indexed 14. Own dedicated channel
-// per phase (ADR-006), kept even though all phases now live in one script
+// Markers -- MIDI channel 15, zero-indexed 14. Own dedicated channel per
+// phase (ADR-006), kept even though this is now a single consolidated script
 // (ADR-007) -- a single script author can trivially avoid note collisions by
 // hand, but the per-phase channel still keeps each phase's note range
 // self-contained and easy to reason about in isolation.
 var MARKERS_CHANNEL = 14
 var NOTE_ADD_MARKER = 0
-var NOTE_NEXT_MARKER = 1
-var NOTE_PREVIOUS_MARKER = 2
-var NOTE_TO_MARKER_1 = 3
-var NOTE_TO_MARKER_2 = 4
-var NOTE_TO_MARKER_3 = 5
-var NOTE_TO_MARKER_4 = 6
-var NOTE_TO_MARKER_5 = 7
-var NOTE_TO_MARKER_6 = 8
-var NOTE_TO_MARKER_7 = 9
-var NOTE_TO_MARKER_8 = 10
-var NOTE_TO_MARKER_9 = 11
-
-// Mixer (Phase 2) -- MIDI channel 13, zero-indexed 12. Selected-channel
-// control only (page.mHostAccess.mTrackSelection.mMixerChannel), not a
-// fixed bank -- see
-// docs/superpowers/specs/2026-07-10-cubase-companion-mixer-design.md.
-var MIXER_CHANNEL = 12
-var NOTE_TOGGLE_MUTE = 0
-var NOTE_TOGGLE_SOLO = 1
-var NOTE_MUTE_STATE = 2
-var NOTE_SOLO_STATE = 3
-var CC_VOLUME_DELTA = 0
-var CC_PAN_DELTA = 1
-// Manufacturer ID 0x7D ("non-commercial/educational use" per the MIDI spec)
-// for the Selected Channel Name SysEx feedback -- must stay byte-for-byte
-// compatible with protocol.ts's encodeChannelNameSysEx/decodeChannelNameSysEx.
-var SYSEX_MANUFACTURER_ID = 0x7d
-var CHANNEL_NAME_MAX_LENGTH = 32
 
 // One device driver for the whole project (ADR-007) -- Cubase's MIDI Remote
 // will not bind two separate controllers to the same MIDI port pair, so every
@@ -98,84 +63,27 @@ function makeButton(x, y) {
 var btnPlay = makeButton(0, 0)
 var btnStop = makeButton(1, 0)
 var btnRecord = makeButton(2, 0)
-var btnReturnToZero = makeButton(3, 0)
-var btnCycle = makeButton(4, 0)
-var btnClick = makeButton(5, 0)
-var btnRewind = makeButton(6, 0)
-var btnForward = makeButton(7, 0)
 
-// Marker buttons -- row 1, so they don't collide with Transport's row-0 grid
+// Marker button -- row 1, so it doesn't collide with Transport's row-0 grid
 // positions now that both phases share one surface.
 var btnAddMarker = makeButton(0, 1)
-var btnNextMarker = makeButton(1, 1)
-var btnPreviousMarker = makeButton(2, 1)
-var btnToMarker1 = makeButton(3, 1)
-var btnToMarker2 = makeButton(4, 1)
-var btnToMarker3 = makeButton(5, 1)
-var btnToMarker4 = makeButton(6, 1)
-var btnToMarker5 = makeButton(7, 1)
-var btnToMarker6 = makeButton(8, 1)
-var btnToMarker7 = makeButton(9, 1)
-var btnToMarker8 = makeButton(10, 1)
-var btnToMarker9 = makeButton(11, 1)
 
-// Mixer buttons -- row 2, so they don't collide with Transport (row 0) or
-// Markers (row 1) now that all three phases share one surface. Only 4
-// buttons for 6 Companion actions: Volume Up/Down both target btnVolume's
-// single relative-CC binding (as do Pan Left/Right and btnPan) -- see the
-// Mixer design spec's MIDI mapping.
-var btnToggleMute = makeButton(0, 2)
-var btnToggleSolo = makeButton(1, 2)
-var btnVolume = makeButton(2, 2)
-var btnPan = makeButton(3, 2)
-
-// Play/Record/Cycle/Click are input-only here (no .setOutputPort()) --
-// Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings turned out
-// to send a noisy burst of 5-7 redundant, differently-encoded messages (mixed
-// Note On/Off velocities plus an undocumented Polyphonic Aftertouch message)
-// per single toggle, which the Companion module's simple state tracker can't
-// reliably resolve to one clean value. See the explicit mOnProcessValueChange
-// feedback below instead, which sends exactly one message per real change.
+// Play/Record are input-only here (no .setOutputPort()) -- Steinberg's
+// automatic MIDI-mirror for .setTypeToggle() bindings turned out to send a
+// noisy burst of 5-7 redundant, differently-encoded messages (mixed Note
+// On/Off velocities plus an undocumented Polyphonic Aftertouch message) per
+// single toggle, which the Companion module's simple state tracker can't
+// reliably resolve to one clean value. See the explicit
+// mOnProcessValueChange feedback below instead, which sends exactly one
+// message per real change.
 btnPlay.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_PLAY)
 btnStop.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_STOP)
 btnRecord.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_RECORD)
-btnReturnToZero.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_RETURN_TO_ZERO)
-btnCycle.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_CYCLE)
-btnClick.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_CLICK)
-btnRewind.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_REWIND)
-btnForward.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_FORWARD)
 
-// Markers are all input-only (no .setOutputPort()) -- these are one-shot
-// command triggers with no persistent state, so there's nothing to send
-// feedback for (see the Markers design spec's Scope section).
+// Add Marker is input-only (no .setOutputPort()) -- a one-shot command
+// trigger with no persistent state, so there's nothing to send feedback for
+// (see the Markers design spec's Scope section).
 btnAddMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_ADD_MARKER)
-btnNextMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_NEXT_MARKER)
-btnPreviousMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_PREVIOUS_MARKER)
-btnToMarker1.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_1)
-btnToMarker2.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_2)
-btnToMarker3.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_3)
-btnToMarker4.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_4)
-btnToMarker5.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_5)
-btnToMarker6.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_6)
-btnToMarker7.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_7)
-btnToMarker8.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_8)
-btnToMarker9.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_9)
-
-// Mute/Solo are input-only here, same reasoning as Play/Record/Cycle/Click
-// above -- Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings
-// sends a noisy multi-message burst; the explicit mOnProcessValueChange
-// feedback below sends exactly one message per real change instead.
-btnToggleMute.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MIXER_CHANNEL, NOTE_TOGGLE_MUTE)
-btnToggleSolo.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MIXER_CHANNEL, NOTE_TOGGLE_SOLO)
-
-// Volume/Pan are relative-encoder style: Companion sends a single CC tick
-// per press (value 1 = up/right, 65 = down/left -- see protocol.ts's
-// encodeRelativeTick), and setTypeRelativeSignedBit() tells Cubase to
-// interpret that as a relative nudge rather than an absolute position.
-// Input-only -- no level/position feedback, per the Mixer design spec's
-// Scope.
-btnVolume.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToControlChange(MIXER_CHANNEL, CC_VOLUME_DELTA).setTypeRelativeSignedBit()
-btnPan.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToControlChange(MIXER_CHANNEL, CC_PAN_DELTA).setTypeRelativeSignedBit()
 
 // One page for everything -- Steinberg MIDI Remote pages are for switching
 // between alternate mappings (e.g. banks) and are not all simultaneously
@@ -187,48 +95,21 @@ var page = deviceDriver.mMapping.makePage('Main')
 page.makeValueBinding(btnPlay.mSurfaceValue, page.mHostAccess.mTransport.mValue.mStart).setTypeToggle()
 page.makeValueBinding(btnStop.mSurfaceValue, page.mHostAccess.mTransport.mValue.mStop)
 page.makeValueBinding(btnRecord.mSurfaceValue, page.mHostAccess.mTransport.mValue.mRecord).setTypeToggle()
-// Return to Zero has no dedicated mTransport.mValue member (unlike Start/Stop/Record/
-// Rewind/Forward/Cycle/Metronome) — it's a Transport menu key command, so it's bound
-// via makeCommandBinding to Cubase's built-in "Return to Zero" key command instead.
-page.makeCommandBinding(btnReturnToZero.mSurfaceValue, 'Transport', 'Return to Zero')
-page.makeValueBinding(btnCycle.mSurfaceValue, page.mHostAccess.mTransport.mValue.mCycleActive).setTypeToggle()
-page.makeValueBinding(btnClick.mSurfaceValue, page.mHostAccess.mTransport.mValue.mMetronomeActive).setTypeToggle()
-page.makeValueBinding(btnRewind.mSurfaceValue, page.mHostAccess.mTransport.mValue.mRewind)
-page.makeValueBinding(btnForward.mSurfaceValue, page.mHostAccess.mTransport.mValue.mForward)
 
-// Exact Cubase key command names, category 'Transport' for all -- pulled from
-// this Cubase install's own key-command presets (Presets/KeyCommands/*.xml),
-// not guessed. 'To Marker N' jumps to an existing marker; 'Set Marker N'
-// (not used here) assigns/overwrites one instead -- see the Markers design
-// spec's decision log.
+// Exact Cubase key command name, category 'Transport' -- pulled from this
+// Cubase install's own key-command presets (Presets/KeyCommands/*.xml), not
+// guessed. 'To Marker N' jumps to an existing marker; 'Set Marker N' (not
+// used here) assigns/overwrites one instead -- see the Markers design spec's
+// decision log.
 page.makeCommandBinding(btnAddMarker.mSurfaceValue, 'Transport', 'Insert Marker')
-page.makeCommandBinding(btnNextMarker.mSurfaceValue, 'Transport', 'Locate Next Marker')
-page.makeCommandBinding(btnPreviousMarker.mSurfaceValue, 'Transport', 'Locate Previous Marker')
-page.makeCommandBinding(btnToMarker1.mSurfaceValue, 'Transport', 'To Marker 1')
-page.makeCommandBinding(btnToMarker2.mSurfaceValue, 'Transport', 'To Marker 2')
-page.makeCommandBinding(btnToMarker3.mSurfaceValue, 'Transport', 'To Marker 3')
-page.makeCommandBinding(btnToMarker4.mSurfaceValue, 'Transport', 'To Marker 4')
-page.makeCommandBinding(btnToMarker5.mSurfaceValue, 'Transport', 'To Marker 5')
-page.makeCommandBinding(btnToMarker6.mSurfaceValue, 'Transport', 'To Marker 6')
-page.makeCommandBinding(btnToMarker7.mSurfaceValue, 'Transport', 'To Marker 7')
-page.makeCommandBinding(btnToMarker8.mSurfaceValue, 'Transport', 'To Marker 8')
-page.makeCommandBinding(btnToMarker9.mSurfaceValue, 'Transport', 'To Marker 9')
-
-// Mixer: selected-channel control only (no bank/zone) -- whatever track is
-// currently selected in Cubase, via mHostAccess.mTrackSelection.mMixerChannel.
-var selectedChannel = page.mHostAccess.mTrackSelection.mMixerChannel
-page.makeValueBinding(btnToggleMute.mSurfaceValue, selectedChannel.mValue.mMute).setTypeToggle()
-page.makeValueBinding(btnToggleSolo.mSurfaceValue, selectedChannel.mValue.mSolo).setTypeToggle()
-page.makeValueBinding(btnVolume.mSurfaceValue, selectedChannel.mValue.mVolume)
-page.makeValueBinding(btnPan.mSurfaceValue, selectedChannel.mValue.mPan)
 
 page.mOnActivate = function (activeDevice) {
   console.log('CubaseCompanion: page activated')
 }
 
-// Explicit, single-message state feedback for the four bidirectional Transport
-// toggles (Play/Record/Cycle/Click). Markers has no feedback -- see Scope in
-// the Markers design spec.
+// Explicit, single-message state feedback for the two bidirectional
+// Transport toggles (Play/Record). Add Marker has no feedback -- see Scope
+// in the Markers design spec.
 //
 // NOTE: a prior version of this bound the callback to the *host* value
 // (page.mHostAccess.mTransport.mValue.mX.mOnProcessValueChange) instead of
@@ -253,35 +134,6 @@ function bindStateFeedback(surfaceValue, channel, note) {
 
 bindStateFeedback(btnPlay.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_PLAY_STATE)
 bindStateFeedback(btnRecord.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_RECORD_STATE)
-bindStateFeedback(btnCycle.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_CYCLE_STATE)
-bindStateFeedback(btnClick.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_CLICK_STATE)
-bindStateFeedback(btnToggleMute.mSurfaceValue, MIXER_CHANNEL, NOTE_MUTE_STATE)
-bindStateFeedback(btnToggleSolo.mSurfaceValue, MIXER_CHANNEL, NOTE_SOLO_STATE)
-
-// Selected Channel Name feedback -- SysEx (see the Mixer design spec's SysEx
-// section): plain Note/CC messages can't carry text, but a bound surface
-// value's mOnTitleChange fires with the underlying host object's title (here,
-// the selected channel's name) whenever it changes -- same "only documented
-// on mSurfaceValue" pattern already established for mOnProcessValueChange
-// above (see ADR-004's amendment) and confirmed against Steinberg's own
-// ExampleCompany_RealWorldDevice.js factory script's
-// faderStrip.fader.mSurfaceValue.mOnTitleChange usage. Bound to btnVolume
-// since it's the fader-equivalent control; ASCII-only, truncated to 32
-// characters -- must stay byte-for-byte compatible with protocol.ts's
-// encodeChannelNameSysEx.
-function toSafeAsciiByte(charCode) {
-  return charCode >= 0x20 && charCode <= 0x7e ? charCode : 0x3f
-}
-
-btnVolume.mSurfaceValue.mOnTitleChange = function (activeDevice, objectTitle) {
-  var truncated = objectTitle.substring(0, CHANNEL_NAME_MAX_LENGTH)
-  var bytes = [0xf0, SYSEX_MANUFACTURER_ID]
-  for (var i = 0; i < truncated.length; i++) {
-    bytes.push(toSafeAsciiByte(truncated.charCodeAt(i)))
-  }
-  bytes.push(0xf7)
-  midiOutput.sendMidi(activeDevice, bytes)
-}
 
 var lastHeartbeatSentAt = 0
 
