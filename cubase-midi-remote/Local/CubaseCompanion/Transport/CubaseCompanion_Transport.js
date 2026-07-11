@@ -59,14 +59,15 @@ function makeButton(x, y) {
   return surface.makeButton(x, y, 1, 1)
 }
 
-// Transport buttons -- row 0.
+// All four buttons on one row -- the surface grid position here is only
+// this script's own local layout and has no effect on Companion's UI (each
+// Companion action/button is placed independently in Companion itself), so
+// there's no reason to spread Transport/Markers across separate rows now
+// that there are only four buttons total.
 var btnPlay = makeButton(0, 0)
 var btnStop = makeButton(1, 0)
 var btnRecord = makeButton(2, 0)
-
-// Marker button -- row 1, so it doesn't collide with Transport's row-0 grid
-// positions now that both phases share one surface.
-var btnAddMarker = makeButton(0, 1)
+var btnAddMarker = makeButton(3, 0)
 
 // Play/Record are input-only here (no .setOutputPort()) -- Steinberg's
 // automatic MIDI-mirror for .setTypeToggle() bindings turned out to send a
