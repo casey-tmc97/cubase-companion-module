@@ -1,8 +1,7 @@
 # Cubase
 
-Controls Steinberg Cubase's transport (Play, Stop, Record, Return to Zero,
-Cycle, Click, Rewind, Forward) with live feedback, via Cubase's MIDI Remote
-API.
+Controls Steinberg Cubase's transport (Play, Stop, Record) and markers (Add
+Marker) with live feedback, via Cubase's MIDI Remote API.
 
 ## Setup
 

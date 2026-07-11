@@ -1,5 +1,16 @@
 # Cubase Companion — Setup & Verification
 
+> **Note:** This is the historical Phase 1-3 verification record, dated
+> 2026-07-10 — it predates the [v1.0 scope trim](superpowers/specs/2026-07-11-cubase-companion-v1-scope-trim-design.md)
+> and its checklist covers a wider feature set (Cycle, Click, Rewind,
+> Forward, Return to Zero, Next/Previous Marker, To Marker 1-9) than what
+> v1.0 actually ships (Play, Stop, Record, Add Marker only — see
+> [ROADMAP.md](../ROADMAP.md)). The v1.0-relevant subset of this checklist
+> — Play/Stop/Record and Add Marker — was included in and passed that same
+> live verification pass; the rest documents features since deferred to a
+> future full-API implementation pass, kept here as a known-working
+> reference rather than rewritten or deleted.
+
 ## Setup
 
 1. Point your existing virtual/network MIDI port pair so both a "CubaseCompanion" input and output are visible to Cubase and to Node/Companion (loopMIDI locally, or rtpMIDI/AppleMIDI across machines). One port pair carries every phase (Transport, Markers, and future phases) — see [ADR-007](adr/ADR-007-single-consolidated-cubase-script.md).

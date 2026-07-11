@@ -16,7 +16,7 @@
    - macOS: `~/Documents/Steinberg/Cubase/MIDI Remote/Driver Scripts/Local/CubaseCompanion/Transport/`
 2. In Cubase: **Studio → Studio Setup → MIDI Remote**, add "CubaseCompanion Transport" as a controller, and bind its input/output to your MIDI port pair.
 3. Open the MIDI Remote Script Console and confirm no errors are logged, and the activation log line appears.
-4. **Verify the Return-to-Zero binding specifically** — it uses a Cubase key-command name (`'Transport'` / `'Return to Zero'`) that hasn't been confirmed against a real Cubase installation (see [README.md](README.md#known-limitations)). If it errors or doesn't fire, check Cubase's own **Edit → Key Commands** dialog for the real category/name of the "return to project start" command and update the script's `makeCommandBinding` call to match.
+4. **Verify the Add Marker binding specifically** — it uses a Cubase key-command name (`'Transport'` / `'Insert Marker'`) via `makeCommandBinding`, the one binding in this script not driven by a direct host value. If it errors or doesn't fire, check Cubase's own **Edit → Key Commands** dialog for the real category/name of the "insert marker" command and update the script's `makeCommandBinding` call to match.
 
 ## Install the Companion module
 
