@@ -1,18 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { Input, Output } from '@julusian/midi'
-import {
-  TransportNote,
-  TRANSPORT_CHANNEL,
-  MIXER_CHANNEL,
-  encodeNoteOn,
-  encodeNoteOff,
-  encodeTrigger,
-  encodeRelativeTick,
-  decodeMidiMessage,
-  decodeChannelNameSysEx,
-} from './protocol.js'
+import { TransportNote, TRANSPORT_CHANNEL, encodeNoteOn, encodeNoteOff, encodeTrigger, decodeMidiMessage } from './protocol.js'
 import { TransportState, createInitialTransportState, applyStateNote } from './transportState.js'
-import { MixerState, createInitialMixerState, applyMixerStateNote, applyChannelName } from './mixerState.js'
 import { ConnectionState } from './connectionState.js'
 
 // How often the passive ConnectionState.isConnected() computation is re-checked
@@ -28,22 +17,22 @@ const CONNECTION_CHECK_INTERVAL_MS = 1000
 // feedback Cubase echoes back on the same note (ADR-004). Left unhandled, that
 // self-echo raced Cubase's real (slower, script-engine-round-tripped) feedback
 // and flipped state true-then-false within microseconds -- visible as a flicker
-// instead of a clean toggle (e.g. Cycle/Click). SELF_ECHO_WINDOW_MS bounds how
-// long a just-sent message is trusted as "could still be my own loopback echo";
-// it comfortably covers local loopback latency while staying far shorter than a
-// genuine Cubase round trip, so a real independent state change past the window
-// is never mistaken for an echo of our own send. On topologies with no self-echo
+// instead of a clean toggle. SELF_ECHO_WINDOW_MS bounds how long a just-sent
+// message is trusted as "could still be my own loopback echo"; it comfortably
+// covers local loopback latency while staying far shorter than a genuine
+// Cubase round trip, so a real independent state change past the window is
+// never mistaken for an echo of our own send. On topologies with no self-echo
 // at all (e.g. cross-machine network MIDI per ADR-005), pending entries simply
 // expire unmatched and are dropped -- see consumeSelfEcho().
 const SELF_ECHO_WINDOW_MS = 150
 
 // sendTrigger() used to send Note On immediately followed by Note Off with no
-// gap at all. Cubase's .setTypeToggle() bindings for Record/Cycle/Click kept
-// reporting the toggle reverting right back to its prior state after a
-// Companion-sent trigger, even once feedback was wired up correctly -- a
-// genuine hardware button always has *some* non-zero hold duration between
-// press and release, and a real gap here better matches what Cubase's toggle
-// handling expects instead of a zero-duration pulse.
+// gap at all. Cubase's .setTypeToggle() binding for Record kept reporting the
+// toggle reverting right back to its prior state after a Companion-sent
+// trigger, even once feedback was wired up correctly -- a genuine hardware
+// button always has *some* non-zero hold duration between press and release,
+// and a real gap here better matches what Cubase's toggle handling expects
+// instead of a zero-duration pulse.
 export const TRIGGER_HOLD_MS = 40
 
 function messagesEqual(a: number[], b: number[]): boolean {
@@ -55,7 +44,6 @@ export class MidiConnection extends EventEmitter {
   private readonly input = new Input()
   private readonly output = new Output()
   private transportState: TransportState = createInitialTransportState()
-  private mixerState: MixerState = createInitialMixerState()
   private readonly connectionState = new ConnectionState()
   // ConnectionState.isConnected() is a passive on-demand computation (derived from
   // now() - lastHeartbeatAt) — nothing re-evaluates it on its own once messages stop
@@ -132,30 +120,25 @@ export class MidiConnection extends EventEmitter {
   }
 
   // channel is explicit (not defaulted to TRANSPORT_CHANNEL) because this is
-  // the one send method shared across phase scripts on different channels --
-  // see actions.ts's Markers actions for the MARKERS_CHANNEL callers.
+  // the one send method shared with the Markers action on a different channel
+  // -- see actions.ts's addMarker callback.
   sendTrigger(channel: number, note: number): void {
     const [noteOn, noteOff] = encodeTrigger(channel, note)
     this.sendRaw(noteOn)
     setTimeout(() => this.sendRaw(noteOff), TRIGGER_HOLD_MS)
   }
 
-  // For host values that need a genuine press-and-hold (e.g. Cubase's
-  // mRewind/mForward -- see actions.ts), rather than sendTrigger()'s instant
-  // Note On + Note Off pulse, which never registers as a hold. Transport-only
-  // (Rewind/Forward/Stop) -- always TRANSPORT_CHANNEL, unlike sendTrigger.
+  // For host values that need a genuine press-and-hold, rather than
+  // sendTrigger()'s instant Note On + Note Off pulse, which never registers
+  // as a hold. Always TRANSPORT_CHANNEL, unlike sendTrigger. Used by Stop (a
+  // plain non-toggle value binding where a full trigger pair would
+  // double-fire) -- see actions.ts.
   sendNoteOn(note: number): void {
     this.sendRaw(encodeNoteOn(TRANSPORT_CHANNEL, note))
   }
 
   sendNoteOff(note: number): void {
     this.sendRaw(encodeNoteOff(TRANSPORT_CHANNEL, note))
-  }
-
-  // One-directional (Companion -> Cubase only), same channel-explicit
-  // reasoning as sendTrigger -- see actions.ts's Mixer Volume/Pan actions.
-  sendRelativeCC(channel: number, controller: number, direction: 1 | -1): void {
-    this.sendRaw(encodeRelativeTick(channel, controller, direction))
   }
 
   private sendRaw(message: number[]): void {
@@ -189,10 +172,6 @@ export class MidiConnection extends EventEmitter {
     return this.transportState
   }
 
-  getMixerState(): MixerState {
-    return this.mixerState
-  }
-
   isConnected(): boolean {
     return this.connectionState.isConnected()
   }
@@ -200,41 +179,19 @@ export class MidiConnection extends EventEmitter {
   private handleMessage(message: number[]): void {
     if (this.consumeSelfEcho(message)) return
 
-    if (message[0] === 0xf0) {
-      const name = decodeChannelNameSysEx(message)
-      if (name === null) return
-      const next = applyChannelName(this.mixerState, name)
-      if (next !== this.mixerState) {
-        this.mixerState = next
-        this.emit('stateChanged')
-      }
-      return
-    }
-
     const decoded = decodeMidiMessage(message)
     if (!decoded) return
 
-    if (decoded.channel === TRANSPORT_CHANNEL) {
-      if (decoded.note === TransportNote.Heartbeat) {
-        this.connectionState.recordHeartbeat()
-        this.applyConnectedState(true)
-        return
-      }
-
-      const next = applyStateNote(this.transportState, decoded.note, decoded.isOn)
-      if (next !== this.transportState) {
-        this.transportState = next
-        this.emit('stateChanged')
-      }
+    if (decoded.note === TransportNote.Heartbeat) {
+      this.connectionState.recordHeartbeat()
+      this.applyConnectedState(true)
       return
     }
 
-    if (decoded.channel === MIXER_CHANNEL) {
-      const next = applyMixerStateNote(this.mixerState, decoded.note, decoded.isOn)
-      if (next !== this.mixerState) {
-        this.mixerState = next
-        this.emit('stateChanged')
-      }
+    const next = applyStateNote(this.transportState, decoded.note, decoded.isOn)
+    if (next !== this.transportState) {
+      this.transportState = next
+      this.emit('stateChanged')
     }
   }
 
@@ -261,11 +218,9 @@ export class MidiConnection extends EventEmitter {
     if (nowConnected === this.lastKnownConnected) return
     this.lastKnownConnected = nowConnected
     if (!nowConnected) {
-      // Cubase stopped responding; don't let stale "Playing"/"Recording" or
-      // stale Mute/Solo/channel-name state linger next to a fresh
-      // "Disconnected" status.
+      // Cubase stopped responding; don't let stale "Playing"/"Recording"
+      // state linger next to a fresh "Disconnected" status.
       this.transportState = createInitialTransportState()
-      this.mixerState = createInitialMixerState()
     }
     this.emit('stateChanged')
   }

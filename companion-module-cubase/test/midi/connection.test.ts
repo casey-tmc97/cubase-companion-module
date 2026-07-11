@@ -50,8 +50,7 @@ vi.mock('@julusian/midi', async () => {
 })
 
 const { MidiConnection, TRIGGER_HOLD_MS } = await import('../../src/midi/connection.js')
-const { TransportNote, MixerNote, MixerCC, TRANSPORT_CHANNEL, MARKERS_CHANNEL, MIXER_CHANNEL, encodeNoteOn, encodeNoteOff, encodeControlChange, encodeChannelNameSysEx } =
-  await import('../../src/midi/protocol.js')
+const { TransportNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL, encodeNoteOn, encodeNoteOff } = await import('../../src/midi/protocol.js')
 const { HEARTBEAT_TIMEOUT_MS } = await import('../../src/midi/connectionState.js')
 
 function sendHeartbeat(connection: InstanceType<typeof MidiConnection>): void {
@@ -117,8 +116,6 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
     expect(connection.getTransportState()).toEqual({
       playing: false,
       recording: false,
-      cycleActive: false,
-      clickActive: false,
     })
 
     connection.close()
@@ -174,12 +171,12 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
 // sender. So the moment sendTrigger()/sendNoteOn()/sendNoteOff() write a message
 // out, that exact message also arrives back on `this.input`'s 'message' event.
 // This used to be indistinguishable from genuine state feedback, since
-// Play/Record/Cycle/Click's feedback originally reused their trigger note --
-// that also turned out to be the root cause of a much worse bug (Cubase's own
-// input binding re-ingesting its own feedback as a fresh press; see ADR-004),
-// fixed by moving feedback onto dedicated *State notes Companion never sends
-// on. These tests exercise the suppression mechanism generically with
-// TransportNote.CycleState standing in for "some note Companion both sends
+// Play/Record's feedback originally reused their trigger note -- that also
+// turned out to be the root cause of a much worse bug (Cubase's own input
+// binding re-ingesting its own feedback as a fresh press; see ADR-004), fixed
+// by moving feedback onto dedicated *State notes Companion never sends on.
+// These tests exercise the suppression mechanism generically with
+// TransportNote.RecordState standing in for "some note Companion both sends
 // triggers on and tracks state for" -- the mechanism itself doesn't know or
 // care which notes are wired to what.
 describe('MidiConnection self-echo suppression', () => {
@@ -199,15 +196,15 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.RecordState)
     // sendTrigger()'s Note Off is sent TRIGGER_HOLD_MS after the Note On (see
     // connection.ts) rather than immediately, so let it actually go out before
     // simulating loopMIDI echoing both back into our own input.
     vi.advanceTimersByTime(TRIGGER_HOLD_MS)
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
-    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
-    expect(connection.getTransportState().cycleActive).toBe(false)
+    expect(connection.getTransportState().recording).toBe(false)
 
     connection.close()
   })
@@ -216,15 +213,15 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.RecordState)
     vi.advanceTimersByTime(TRIGGER_HOLD_MS)
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
-    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
     // Cubase's real feedback, arriving after its own script-engine round trip.
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
-    expect(connection.getTransportState().cycleActive).toBe(true)
+    expect(connection.getTransportState().recording).toBe(true)
 
     connection.close()
   })
@@ -234,10 +231,10 @@ describe('MidiConnection self-echo suppression', () => {
     connection.open()
 
     // No sendTrigger() call here -- this is Cubase-initiated (e.g. the user
-    // toggled Cycle from Cubase's own transport bar, not from Companion).
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    // pressed Record from Cubase's own transport bar, not from Companion).
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
-    expect(connection.getTransportState().cycleActive).toBe(true)
+    expect(connection.getTransportState().recording).toBe(true)
 
     connection.close()
   })
@@ -246,14 +243,14 @@ describe('MidiConnection self-echo suppression', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
 
-    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.RecordState)
     vi.advanceTimersByTime(1000)
     // Arrives too late to plausibly be the loopback echo of the send above --
     // treat it as genuine (e.g. a real, independent later Cubase toggle) rather
     // than silently swallowing it forever.
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
-    expect(connection.getTransportState().cycleActive).toBe(true)
+    expect(connection.getTransportState().recording).toBe(true)
 
     connection.close()
   })
@@ -273,17 +270,17 @@ describe('MidiConnection sendTrigger hold gap', () => {
     connection.open()
     const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
 
-    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.CycleState)
+    connection.sendTrigger(TRANSPORT_CHANNEL, TransportNote.RecordState)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
     vi.advanceTimersByTime(TRIGGER_HOLD_MS - 1)
     expect(sendSpy).toHaveBeenCalledTimes(1)
 
     vi.advanceTimersByTime(1)
     expect(sendSpy).toHaveBeenCalledTimes(2)
-    expect(sendSpy).toHaveBeenNthCalledWith(2, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.CycleState))
+    expect(sendSpy).toHaveBeenNthCalledWith(2, encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.RecordState))
 
     connection.close()
   })
@@ -301,16 +298,16 @@ describe('MidiConnection sendTrigger hold gap', () => {
   })
 })
 
-describe('MidiConnection hold-style Rewind/Forward', () => {
+describe('MidiConnection sendNoteOn/sendNoteOff', () => {
   it('sendNoteOn sends only a Note On, with no matching Note Off', () => {
     const connection = new MidiConnection('fake-in', 'fake-out')
     connection.open()
     const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
 
-    connection.sendNoteOn(TransportNote.Rewind)
+    connection.sendNoteOn(TransportNote.Stop)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Rewind))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Stop))
 
     connection.close()
   })
@@ -320,123 +317,11 @@ describe('MidiConnection hold-style Rewind/Forward', () => {
     connection.open()
     const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
 
-    connection.sendNoteOff(TransportNote.Rewind)
+    connection.sendNoteOff(TransportNote.Stop)
 
     expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.Rewind))
+    expect(sendSpy).toHaveBeenCalledWith(encodeNoteOff(TRANSPORT_CHANNEL, TransportNote.Stop))
 
-    connection.close()
-  })
-})
-
-describe('MidiConnection sendRelativeCC', () => {
-  it('sends a single relative-tick CC message, up', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
-
-    connection.sendRelativeCC(MIXER_CHANNEL, MixerCC.VolumeDelta, 1)
-
-    expect(sendSpy).toHaveBeenCalledTimes(1)
-    expect(sendSpy).toHaveBeenCalledWith(encodeControlChange(MIXER_CHANNEL, MixerCC.VolumeDelta, 1))
-
-    connection.close()
-  })
-
-  it('sends a single relative-tick CC message, down', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-    const sendSpy = vi.spyOn((connection as unknown as { output: { sendMessage: (m: number[]) => void } }).output, 'sendMessage')
-
-    connection.sendRelativeCC(MIXER_CHANNEL, MixerCC.PanDelta, -1)
-
-    expect(sendSpy).toHaveBeenCalledWith(encodeControlChange(MIXER_CHANNEL, MixerCC.PanDelta, 65))
-
-    connection.close()
-  })
-})
-
-describe('MidiConnection mixer state', () => {
-  function fakeInputOf(connection: InstanceType<typeof MidiConnection>): EventEmitter {
-    return (connection as unknown as { input: EventEmitter }).input
-  }
-
-  it('starts with initial mixer state', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-
-    expect(connection.getMixerState()).toEqual({ muted: false, solo: false, selectedChannelName: null })
-
-    connection.close()
-  })
-
-  it('updates muted from a MuteState note on MIXER_CHANNEL and emits stateChanged', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-    const stateChangedSpy = vi.fn()
-    connection.on('stateChanged', stateChangedSpy)
-
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
-
-    expect(connection.getMixerState().muted).toBe(true)
-    expect(stateChangedSpy).toHaveBeenCalled()
-
-    connection.close()
-  })
-
-  it('updates solo from a SoloState note on MIXER_CHANNEL', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.SoloState))
-
-    expect(connection.getMixerState().solo).toBe(true)
-
-    connection.close()
-  })
-
-  it('does not confuse a Mixer-channel note with a same-numbered Transport note', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-
-    // TransportNote.Record (2) and MixerNote.MuteState (2) share a note
-    // number but live on different channels -- only the Mixer one should
-    // affect mixer state, and vice versa.
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
-    expect(connection.getTransportState().recording).toBe(false)
-    expect(connection.getMixerState().muted).toBe(true)
-
-    connection.close()
-  })
-
-  it('updates the selected channel name from a SysEx message', () => {
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-    const stateChangedSpy = vi.fn()
-    connection.on('stateChanged', stateChangedSpy)
-
-    fakeInputOf(connection).emit('message', 0, encodeChannelNameSysEx('Vocal'))
-
-    expect(connection.getMixerState().selectedChannelName).toBe('Vocal')
-    expect(stateChangedSpy).toHaveBeenCalled()
-
-    connection.close()
-  })
-
-  it('resets mixer state on heartbeat-timeout disconnect', () => {
-    vi.useFakeTimers()
-    const connection = new MidiConnection('fake-in', 'fake-out')
-    connection.open()
-
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(TRANSPORT_CHANNEL, TransportNote.Heartbeat))
-    fakeInputOf(connection).emit('message', 0, encodeNoteOn(MIXER_CHANNEL, MixerNote.MuteState))
-    expect(connection.getMixerState().muted).toBe(true)
-
-    vi.advanceTimersByTime(HEARTBEAT_TIMEOUT_MS + 1000)
-
-    expect(connection.getMixerState()).toEqual({ muted: false, solo: false, selectedChannelName: null })
-
-    vi.useRealTimers()
     connection.close()
   })
 })
