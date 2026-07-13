@@ -47,6 +47,19 @@ describe('UpdateActions', () => {
         'toMarker7',
         'toMarker8',
         'toMarker9',
+        'setMarker1',
+        'setMarker2',
+        'setMarker3',
+        'setMarker4',
+        'setMarker5',
+        'setMarker6',
+        'setMarker7',
+        'setMarker8',
+        'setMarker9',
+        'setPunchIn',
+        'setPunchOut',
+        'autoPunchIn',
+        'autoPunchOut',
       ].sort(),
     )
   })
@@ -220,5 +233,65 @@ describe('UpdateActions', () => {
     await definitions[`toMarker${n}`].callback({} as any)
 
     expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote[noteKey])
+  })
+
+  it.each([
+    [1, 'SetMarker1'],
+    [2, 'SetMarker2'],
+    [3, 'SetMarker3'],
+    [4, 'SetMarker4'],
+    [5, 'SetMarker5'],
+    [6, 'SetMarker6'],
+    [7, 'SetMarker7'],
+    [8, 'SetMarker8'],
+    [9, 'SetMarker9'],
+  ] as const)('setMarker%i action sends a trigger on MARKERS_CHANNEL, %s note', async (n, noteKey) => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions[`setMarker${n}`].callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote[noteKey])
+  })
+
+  it('setPunchIn action sends a trigger on MARKERS_CHANNEL, SetPunchIn note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.setPunchIn.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.SetPunchIn)
+  })
+
+  it('setPunchOut action sends a trigger on MARKERS_CHANNEL, SetPunchOut note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.setPunchOut.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.SetPunchOut)
+  })
+
+  it('autoPunchIn action sends a trigger on MARKERS_CHANNEL, AutoPunchIn note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.autoPunchIn.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.AutoPunchIn)
+  })
+
+  it('autoPunchOut action sends a trigger on MARKERS_CHANNEL, AutoPunchOut note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.autoPunchOut.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.AutoPunchOut)
   })
 })

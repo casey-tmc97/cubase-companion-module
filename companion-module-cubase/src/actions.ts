@@ -166,6 +166,74 @@ export function UpdateActions(self: ModuleLike): void {
       options: [],
       callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker9),
     },
+    // Set Marker 1-9 (assign/overwrite marker slot N at the current position)
+    // and punch points: one-shot triggers on MARKERS_CHANNEL, no feedback --
+    // see docs/superpowers/specs/2026-07-13-cubase-companion-punch-markers-design.md.
+    setMarker1: {
+      name: 'Set Marker 1',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker1),
+    },
+    setMarker2: {
+      name: 'Set Marker 2',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker2),
+    },
+    setMarker3: {
+      name: 'Set Marker 3',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker3),
+    },
+    setMarker4: {
+      name: 'Set Marker 4',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker4),
+    },
+    setMarker5: {
+      name: 'Set Marker 5',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker5),
+    },
+    setMarker6: {
+      name: 'Set Marker 6',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker6),
+    },
+    setMarker7: {
+      name: 'Set Marker 7',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker7),
+    },
+    setMarker8: {
+      name: 'Set Marker 8',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker8),
+    },
+    setMarker9: {
+      name: 'Set Marker 9',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetMarker9),
+    },
+    setPunchIn: {
+      name: 'Set Punch In Position',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetPunchIn),
+    },
+    setPunchOut: {
+      name: 'Set Punch Out Position',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.SetPunchOut),
+    },
+    autoPunchIn: {
+      name: 'Auto Punch In',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.AutoPunchIn),
+    },
+    autoPunchOut: {
+      name: 'Auto Punch Out',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.AutoPunchOut),
+    },
   }
 
   self.setActionDefinitions(definitions)
