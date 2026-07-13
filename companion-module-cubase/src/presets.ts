@@ -78,7 +78,18 @@ const MARKER_PRESET_IDS = [
   'toMarker7',
   'toMarker8',
   'toMarker9',
+  'setMarker1',
+  'setMarker2',
+  'setMarker3',
+  'setMarker4',
+  'setMarker5',
+  'setMarker6',
+  'setMarker7',
+  'setMarker8',
+  'setMarker9',
 ] as const
+
+const PUNCH_PRESET_IDS = ['setPunchIn', 'setPunchOut', 'autoPunchIn', 'autoPunchOut'] as const
 
 export function UpdatePresets(self: ModuleLike): void {
   const presets: CompanionPresetDefinitions = {
@@ -102,6 +113,19 @@ export function UpdatePresets(self: ModuleLike): void {
     toMarker7: preset('To Marker 7', 'toMarker7'),
     toMarker8: preset('To Marker 8', 'toMarker8'),
     toMarker9: preset('To Marker 9', 'toMarker9'),
+    setMarker1: preset('Set Marker 1', 'setMarker1'),
+    setMarker2: preset('Set Marker 2', 'setMarker2'),
+    setMarker3: preset('Set Marker 3', 'setMarker3'),
+    setMarker4: preset('Set Marker 4', 'setMarker4'),
+    setMarker5: preset('Set Marker 5', 'setMarker5'),
+    setMarker6: preset('Set Marker 6', 'setMarker6'),
+    setMarker7: preset('Set Marker 7', 'setMarker7'),
+    setMarker8: preset('Set Marker 8', 'setMarker8'),
+    setMarker9: preset('Set Marker 9', 'setMarker9'),
+    setPunchIn: preset('Set Punch In', 'setPunchIn'),
+    setPunchOut: preset('Set Punch Out', 'setPunchOut'),
+    autoPunchIn: preset('Auto Punch In', 'autoPunchIn'),
+    autoPunchOut: preset('Auto Punch Out', 'autoPunchOut'),
     cubaseConnected: {
       type: 'simple',
       name: 'Cubase Connected',
@@ -126,6 +150,11 @@ export function UpdatePresets(self: ModuleLike): void {
       id: 'markers',
       name: 'Markers',
       definitions: [...MARKER_PRESET_IDS],
+    },
+    {
+      id: 'punch',
+      name: 'Punch',
+      definitions: [...PUNCH_PRESET_IDS],
     },
     {
       id: 'status',
