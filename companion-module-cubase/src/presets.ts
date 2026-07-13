@@ -1,6 +1,7 @@
 import type { CompanionPresetDefinitions, CompanionPresetSection, CompanionSimplePresetDefinition } from '@companion-module/base'
 import { combineRgb } from '@companion-module/base'
 import type { ModuleLike } from './actions.js'
+import { EXTENDED_TRANSPORT_COMMANDS } from './midi/extendedTransportCommands.js'
 
 // NOTE: this file intentionally deviates from the task-8 brief's sample code.
 // The brief was written against an older @companion-module/base API that
@@ -140,6 +141,29 @@ export function UpdatePresets(self: ModuleLike): void {
     },
   }
 
+  // 120 remaining Transport-category commands, generated from the shared
+  // command table rather than hand-written per command -- see
+  // docs/superpowers/specs/2026-07-13-cubase-companion-extended-transport-design.md.
+  EXTENDED_TRANSPORT_COMMANDS.forEach((cmd) => {
+    presets[cmd.id] = preset(cmd.label, cmd.id)
+  })
+
+  // One preset section per distinct group, in first-appearance order, so
+  // Companion's button picker groups the 120 extended commands the same way
+  // the design spec's Command table groups them.
+  const extendedTransportGroups: string[] = []
+  EXTENDED_TRANSPORT_COMMANDS.forEach((cmd) => {
+    if (!extendedTransportGroups.includes(cmd.group)) {
+      extendedTransportGroups.push(cmd.group)
+    }
+  })
+
+  const extendedTransportStructure: CompanionPresetSection[] = extendedTransportGroups.map((group) => ({
+    id: 'extended-' + group.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+    name: group,
+    definitions: EXTENDED_TRANSPORT_COMMANDS.filter((cmd) => cmd.group === group).map((cmd) => cmd.id),
+  }))
+
   const structure: CompanionPresetSection[] = [
     {
       id: 'transport',
@@ -156,6 +180,7 @@ export function UpdatePresets(self: ModuleLike): void {
       name: 'Punch',
       definitions: [...PUNCH_PRESET_IDS],
     },
+    ...extendedTransportStructure,
     {
       id: 'status',
       name: 'Status',
