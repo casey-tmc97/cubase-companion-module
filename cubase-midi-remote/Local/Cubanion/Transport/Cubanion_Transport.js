@@ -47,6 +47,22 @@ var NOTE_TO_MARKER_6 = 8
 var NOTE_TO_MARKER_7 = 9
 var NOTE_TO_MARKER_8 = 10
 var NOTE_TO_MARKER_9 = 11
+// Set Marker 1-9 (assign/overwrite marker slot N at the current position)
+// and punch points -- see
+// docs/superpowers/specs/2026-07-13-cubase-companion-punch-markers-design.md.
+var NOTE_SET_MARKER_1 = 12
+var NOTE_SET_MARKER_2 = 13
+var NOTE_SET_MARKER_3 = 14
+var NOTE_SET_MARKER_4 = 15
+var NOTE_SET_MARKER_5 = 16
+var NOTE_SET_MARKER_6 = 17
+var NOTE_SET_MARKER_7 = 18
+var NOTE_SET_MARKER_8 = 19
+var NOTE_SET_MARKER_9 = 20
+var NOTE_SET_PUNCH_IN = 21
+var NOTE_SET_PUNCH_OUT = 22
+var NOTE_AUTO_PUNCH_IN = 23
+var NOTE_AUTO_PUNCH_OUT = 24
 
 // One device driver for the whole project (ADR-007) -- Cubase's MIDI Remote
 // will not bind two separate controllers to the same MIDI port pair, so every
@@ -109,6 +125,24 @@ var btnToMarker7 = makeButton(9, 1)
 var btnToMarker8 = makeButton(10, 1)
 var btnToMarker9 = makeButton(11, 1)
 
+// Set Marker 1-9 -- row 2, so they don't collide with row 1's marker
+// navigation buttons.
+var btnSetMarker1 = makeButton(0, 2)
+var btnSetMarker2 = makeButton(1, 2)
+var btnSetMarker3 = makeButton(2, 2)
+var btnSetMarker4 = makeButton(3, 2)
+var btnSetMarker5 = makeButton(4, 2)
+var btnSetMarker6 = makeButton(5, 2)
+var btnSetMarker7 = makeButton(6, 2)
+var btnSetMarker8 = makeButton(7, 2)
+var btnSetMarker9 = makeButton(8, 2)
+
+// Punch points -- row 3.
+var btnSetPunchIn = makeButton(0, 3)
+var btnSetPunchOut = makeButton(1, 3)
+var btnAutoPunchIn = makeButton(2, 3)
+var btnAutoPunchOut = makeButton(3, 3)
+
 // Play/Record/Cycle/Click are input-only here (no .setOutputPort()) --
 // Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings turned out
 // to send a noisy burst of 5-7 redundant, differently-encoded messages (mixed
@@ -140,6 +174,19 @@ btnToMarker6.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKE
 btnToMarker7.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_7)
 btnToMarker8.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_8)
 btnToMarker9.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_9)
+btnSetMarker1.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_1)
+btnSetMarker2.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_2)
+btnSetMarker3.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_3)
+btnSetMarker4.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_4)
+btnSetMarker5.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_5)
+btnSetMarker6.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_6)
+btnSetMarker7.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_7)
+btnSetMarker8.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_8)
+btnSetMarker9.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_MARKER_9)
+btnSetPunchIn.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_PUNCH_IN)
+btnSetPunchOut.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_SET_PUNCH_OUT)
+btnAutoPunchIn.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_AUTO_PUNCH_IN)
+btnAutoPunchOut.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_AUTO_PUNCH_OUT)
 
 // One page for everything -- Steinberg MIDI Remote pages are for switching
 // between alternate mappings (e.g. banks) and are not all simultaneously
@@ -176,6 +223,19 @@ page.makeCommandBinding(btnToMarker6.mSurfaceValue, 'Transport', 'To Marker 6')
 page.makeCommandBinding(btnToMarker7.mSurfaceValue, 'Transport', 'To Marker 7')
 page.makeCommandBinding(btnToMarker8.mSurfaceValue, 'Transport', 'To Marker 8')
 page.makeCommandBinding(btnToMarker9.mSurfaceValue, 'Transport', 'To Marker 9')
+page.makeCommandBinding(btnSetMarker1.mSurfaceValue, 'Transport', 'Set Marker 1')
+page.makeCommandBinding(btnSetMarker2.mSurfaceValue, 'Transport', 'Set Marker 2')
+page.makeCommandBinding(btnSetMarker3.mSurfaceValue, 'Transport', 'Set Marker 3')
+page.makeCommandBinding(btnSetMarker4.mSurfaceValue, 'Transport', 'Set Marker 4')
+page.makeCommandBinding(btnSetMarker5.mSurfaceValue, 'Transport', 'Set Marker 5')
+page.makeCommandBinding(btnSetMarker6.mSurfaceValue, 'Transport', 'Set Marker 6')
+page.makeCommandBinding(btnSetMarker7.mSurfaceValue, 'Transport', 'Set Marker 7')
+page.makeCommandBinding(btnSetMarker8.mSurfaceValue, 'Transport', 'Set Marker 8')
+page.makeCommandBinding(btnSetMarker9.mSurfaceValue, 'Transport', 'Set Marker 9')
+page.makeCommandBinding(btnSetPunchIn.mSurfaceValue, 'Transport', 'Set Punch In Position')
+page.makeCommandBinding(btnSetPunchOut.mSurfaceValue, 'Transport', 'Set Punch Out Position')
+page.makeCommandBinding(btnAutoPunchIn.mSurfaceValue, 'Transport', 'Auto Punch In')
+page.makeCommandBinding(btnAutoPunchOut.mSurfaceValue, 'Transport', 'Auto Punch Out')
 
 page.mOnActivate = function (activeDevice) {
   console.log('Cubanion: page activated')
