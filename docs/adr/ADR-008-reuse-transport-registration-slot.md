@@ -82,3 +82,31 @@ the setup checklist so it isn't rediscovered from scratch next time.
   Cubase update), revisit whether to rename back to something accurate like
   `Controller` — re-test discovery in isolation first before assuming it's
   fixed.
+
+## Update (2026-07-13): fresh discovery confirmed working, vendor/model renamed
+
+The project was renamed from "Cubase Companion Module" to **Cubanion** (not a
+Steinberg product; the rename avoids implying otherwise). This required doing
+exactly the thing this ADR warned against: registering a brand-new vendor/model
+pair (`Cubanion`/`Transport`, replacing `CubaseCompanion`/`Transport`) via fresh
+Local-script discovery, on the same machine this ADR's original investigation
+was done on.
+
+It worked. `Cubanion`/`Transport` appeared in Cubase's MIDI Remote Manager /
+Add Surface flow immediately, with no preferences reset or other workaround
+needed. Nothing was intentionally changed about the Cubase install between the
+original finding (2026-07-10) and this retest (2026-07-13) — it's unknown
+whether an incidental Cubase update, a Windows update, or something else
+resolved it, or whether the original failure had a narrower cause than "this
+install cannot discover new vendor/model pairs at all" (e.g. specific to the
+exact names tried at the time). Either way, treat the original finding as
+**no longer current** rather than a permanent constraint of this install.
+
+The old `CubaseCompanion`/`Transport` registration and its script file
+(`Local/CubaseCompanion/Transport/CubaseCompanion_Transport.js`) were removed
+after the renamed `Cubanion`/`Transport` pair was confirmed working live
+(all four v1.0 actions verified against real Cubase). If a future rename on
+this or another machine hits the original discovery failure again, this ADR's
+reuse-the-existing-registration workaround is still the documented fallback —
+just don't assume it's still necessary without testing fresh discovery first,
+per the note above.

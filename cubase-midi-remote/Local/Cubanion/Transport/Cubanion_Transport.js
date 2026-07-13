@@ -32,26 +32,32 @@ var NOTE_ADD_MARKER = 0
 // phase lives in this one script on one port pair, differentiated only by
 // channel (see the per-phase channel constants above).
 //
-// Registered as vendor 'CubaseCompanion' / model 'Transport' -- not a typo
-// and not actually about Transport specifically anymore. Cubase 15's MIDI
-// Remote Local-script discovery stopped registering any new vendor/model
-// pair on this install (confirmed via extensive live testing: fresh vendor
-// folders, fresh model names, fresh minimal content, a full preferences
-// reset, and a full OS reboot candidate were all ruled out one at a time --
-// see ADR-008). The one pairing that still works is this exact one, because
-// it already has a saved MIDI Controller instance from Phase 1 that Cubase
-// re-resolves against this file path without needing fresh discovery. Reusing
-// it is the pragmatic unblock; see ADR-008 before renaming this again.
-var deviceDriver = midiremote_api.makeDeviceDriver('CubaseCompanion', 'Transport', 'companion-module-cubase')
+// Vendor/model renamed from 'CubaseCompanion'/'Transport' to 'Cubanion'/'Transport'
+// on 2026-07-13, at the project owner's explicit request to have all branding read
+// "Cubanion" rather than "Cubase Companion"/"Steinberg Cubase" (this is not a
+// Steinberg product). ADR-008 documents that this Cubase install could not
+// discover ANY new vendor/model pair via fresh Local-script discovery as of
+// 2026-07-10 -- if this renamed pair fails to appear in Cubase's MIDI Remote
+// Manager / Add Surface list, that is the same unresolved issue, not a bug in
+// this rename. The previous working file at
+// Local/CubaseCompanion/Transport/CubaseCompanion_Transport.js (vendor
+// 'CubaseCompanion', model 'Transport') is intentionally left in place as a
+// fallback until this renamed registration is confirmed working live.
+var deviceDriver = midiremote_api.makeDeviceDriver('Cubanion', 'Transport', 'Cubanion')
 
 var midiInput = deviceDriver.mPorts.makeMidiInput()
 var midiOutput = deviceDriver.mPorts.makeMidiOutput()
 
+// Matches the existing "Cubase" loopMIDI port pair already in use (not renamed
+// to "Cubanion") -- the virtual MIDI port name is runtime environment
+// configuration, not part of this project's own branding, and changing it here
+// would require also recreating the loopMIDI port under a new name, adding an
+// unrelated variable to an already-risky rename. See the ADR-008 comment above.
 deviceDriver
   .makeDetectionUnit()
   .detectPortPair(midiInput, midiOutput)
-  .expectInputNameEquals('CubaseCompanion')
-  .expectOutputNameEquals('CubaseCompanion')
+  .expectInputNameEquals('Cubase')
+  .expectOutputNameEquals('Cubase')
 
 var surface = deviceDriver.mSurface
 
@@ -105,7 +111,7 @@ page.makeValueBinding(btnRecord.mSurfaceValue, page.mHostAccess.mTransport.mValu
 page.makeCommandBinding(btnAddMarker.mSurfaceValue, 'Transport', 'Insert Marker')
 
 page.mOnActivate = function (activeDevice) {
-  console.log('CubaseCompanion: page activated')
+  console.log('Cubanion: page activated')
 }
 
 // Explicit, single-message state feedback for the two bidirectional

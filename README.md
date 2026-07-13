@@ -1,6 +1,6 @@
-# Cubase Companion Module
+# Cubanion
 
-Control Steinberg Cubase's transport and markers from [Bitfocus Companion](https://bitfocus.io/companion) / Stream Deck, with live two-way feedback, via Cubase's official MIDI Remote API — no reverse-engineering, no undocumented protocol.
+Control Steinberg Cubase's transport and markers from [Bitfocus Companion](https://bitfocus.io/companion) / Stream Deck, with live two-way feedback, via Cubase's official MIDI Remote API — no reverse-engineering, no undocumented protocol. Cubanion is an independent personal project and is not affiliated with or endorsed by Steinberg.
 
 **Status:** v1.0.0 — Play, Stop, Record, and Add Marker implemented, unit-tested, and verified against a real Cubase 15 instance.
 
@@ -9,11 +9,11 @@ Control Steinberg Cubase's transport and markers from [Bitfocus Companion](https
 Two independent pieces connected by a plain MIDI port pair:
 
 ```
-Companion (companion-module-cubase)  <--MIDI-->  virtual/network MIDI port  <--MIDI-->  Cubase (MIDI Remote script)
+Companion (companion-module-cubase, module id "cubanion")  <--MIDI-->  virtual/network MIDI port  <--MIDI-->  Cubase (Cubanion_Transport.js)
 ```
 
-- **`companion-module-cubase/`** — a Bitfocus Companion module (TypeScript, `@companion-module/base` + `@julusian/midi`) with named actions, presets, and feedbacks for Play, Stop, Record, and Add Marker.
-- **`cubase-midi-remote/`** — a JavaScript driver script for Cubase's documented MIDI Remote API (12+), placed in Cubase's Driver Scripts folder.
+- **`companion-module-cubase/`** — a Bitfocus Companion module (TypeScript, `@companion-module/base` + `@julusian/midi`), published under the id/name "Cubanion", with named actions, presets, and feedbacks for Play, Stop, Record, and Add Marker.
+- **`cubase-midi-remote/`** — a JavaScript driver script (`Cubanion_Transport.js`) for Cubase's documented MIDI Remote API (12+), placed in Cubase's Driver Scripts folder.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the two halves talk to each other, and [DEPLOYMENT.md](DEPLOYMENT.md) for how to install and run it.
 

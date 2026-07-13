@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. Format follows 
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed the project from "Cubase Companion Module" / vendor-model identity `CubaseCompanion`/`Transport` to **Cubanion** throughout: Companion module id/name (`cubase` → `cubanion`), Cubase-side script and vendor/model registration (`CubaseCompanion_Transport.js` → `Cubanion_Transport.js`, vendor `CubaseCompanion` → `Cubanion`), and all forward-facing docs. This project is not a Steinberg product; the new name avoids implying otherwise. See [ADR-008](docs/adr/ADR-008-reuse-transport-registration-slot.md)'s update note — renaming the vendor/model pair was expected to risk breaking Cubase's Local-script discovery on this machine (per that ADR's original finding) but did not; fresh discovery of the new `Cubanion`/`Transport` pair succeeded on 2026-07-13.
+
 ## [1.0.0] - 2026-07-11
 
 First complete, scoped release — see [ROADMAP.md](ROADMAP.md).

@@ -30,7 +30,7 @@
 │                               │         │                                │
 │  ┌─────────────────────────┐ │         │  ┌──────────────────────────┐  │
 │  │ companion-module-cubase │ │         │  │ MIDI Remote script        │  │
-│  │  - actions.ts            │ │         │  │ CubaseCompanion_Transport │  │
+│  │  - actions.ts            │ │         │  │ Cubanion_Transport        │  │
 │  │  - feedbacks.ts          │ │         │  │  .js                      │  │
 │  │  - presets.ts            │ │         │  │  - transport bindings     │  │
 │  │  - main.ts (lifecycle)   │ │         │  │  - heartbeat (mOnIdle)    │  │
@@ -111,7 +111,7 @@ Full rationale for this design in [docs/adr/ADR-004-fixed-midi-note-contract.md]
 ## Folder Structure
 
 ```
-Cubase Companion Module/
+Cubanion/
 ├── README.md
 ├── PRD.md
 ├── ARCHITECTURE.md
@@ -142,8 +142,8 @@ Cubase Companion Module/
 │   │       └── connection.ts                 # thin: real MIDI I/O, wires the pure modules together
 │   └── test/                                 # Vitest unit tests (56 tests, pure-logic modules only)
 └── cubase-midi-remote/
-    └── Local/CubaseCompanion/Transport/
-        └── CubaseCompanion_Transport.js       # the Cubase-side MIDI Remote driver script
+    └── Local/Cubanion/Transport/
+        └── Cubanion_Transport.js              # the Cubase-side MIDI Remote driver script
 ```
 
 **Design principle behind the `midi/` split:** pure logic (`protocol.ts`, `transportState.ts`, `connectionState.ts`) is fully unit-tested and has no I/O. Thin adapters (`ports.ts`, `connection.ts`) own real `@julusian/midi` hardware access and are deliberately not unit-tested — they're covered by manual verification instead, per [DEPLOYMENT.md](DEPLOYMENT.md).

@@ -1,5 +1,5 @@
 export const TRANSPORT_CHANNEL = 15 // MIDI channel 16, zero-indexed
-// Dedicated channel for the Markers phase script (CubaseCompanion_Markers.js),
+// Dedicated channel for the Markers phase script (Cubanion_Markers.js),
 // separate from TRANSPORT_CHANNEL so each phase's note numbering is fully
 // self-contained -- see ADR-006.
 export const MARKERS_CHANNEL = 14 // MIDI channel 15, zero-indexed

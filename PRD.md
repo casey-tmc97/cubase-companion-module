@@ -2,7 +2,7 @@
 
 ## Application Name
 
-Cubase Companion Module (`companion-module-cubase`)
+Cubanion (package/module id: `companion-module-cubase` / `cubanion`)
 
 ## Project Type
 
