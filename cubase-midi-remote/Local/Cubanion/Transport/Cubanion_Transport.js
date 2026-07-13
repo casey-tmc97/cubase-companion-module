@@ -64,6 +64,137 @@ var NOTE_SET_PUNCH_OUT = 22
 var NOTE_AUTO_PUNCH_IN = 23
 var NOTE_AUTO_PUNCH_OUT = 24
 
+// Extended Transport -- MIDI channel 14, zero-indexed 13. Covers the
+// remaining 120 Transport-category key commands not covered by the phases
+// above. Data-driven (single array, one loop below) rather than hand-written
+// per command -- see
+// docs/superpowers/specs/2026-07-13-cubase-companion-extended-transport-design.md.
+// Order must exactly match EXTENDED_TRANSPORT_COMMANDS in
+// src/midi/extendedTransportCommands.ts -- array index is the MIDI note number.
+var EXTENDED_TRANSPORT_CHANNEL = 13
+var EXTENDED_TRANSPORT_COMMANDS = [
+  'Set Left Locator',
+  'Set Right Locator',
+  'To Left Locator',
+  'To Right Locator',
+  'Exchange Locator Positions',
+  'Locators to Selection',
+  'Input Left Locator',
+  'Input Right Locator',
+  'Input Locator Duration',
+  'Input Position',
+  'Insert Cycle Marker',
+  'To Cycle Marker 1',
+  'To Cycle Marker 2',
+  'To Cycle Marker 3',
+  'To Cycle Marker 4',
+  'To Cycle Marker 5',
+  'To Cycle Marker 6',
+  'To Cycle Marker 7',
+  'To Cycle Marker 8',
+  'To Cycle Marker 9',
+  'To Cycle Marker X',
+  'Recall Cycle Marker 1',
+  'Recall Cycle Marker 2',
+  'Recall Cycle Marker 3',
+  'Recall Cycle Marker 4',
+  'Recall Cycle Marker 5',
+  'Recall Cycle Marker 6',
+  'Recall Cycle Marker 7',
+  'Recall Cycle Marker 8',
+  'Recall Cycle Marker 9',
+  'Recall Cycle Marker X',
+  'Input Punch In Position',
+  'Input Punch Out Position',
+  'Set Punch Points To Selection',
+  'Sync Punch To Cycle',
+  'To Punch In Position',
+  'To Punch Out Position',
+  'Play until Next Marker',
+  'To Marker X',
+  'Toggle: Cycle follows when locating to Markers',
+  'Play Selection Range',
+  'Play Selection Solo',
+  'Play from Selection End',
+  'Play from Selection Start',
+  'Play until Selection End',
+  'Play until Selection Start',
+  'Post-roll from Selection End',
+  'Post-roll from Selection Start',
+  'Pre-roll to Selection End',
+  'Pre-roll to Selection Start',
+  'Locate Selection',
+  'Locate Selection End',
+  'Loop Selection',
+  'Loop Selection Solo',
+  'Locate Next Event',
+  'Locate Previous Event',
+  'Locate Next Hitpoint',
+  'Locate Previous Hitpoint',
+  'Fast Rewind',
+  'Fast Forward',
+  'Goto End',
+  'StartStop',
+  'StartStop Preview',
+  'Restart',
+  'Return to Start Position',
+  'Activate Return to Start Position',
+  'Nudge Cursor Right',
+  'Nudge Cursor Left',
+  'Nudge Cursor -5 Seconds',
+  'Nudge Cursor +5 Seconds',
+  'Nudge Cursor -10 Seconds',
+  'Nudge Cursor +10 Seconds',
+  'Nudge Cursor -20 Seconds',
+  'Nudge Cursor +20 Seconds',
+  'Nudge +1 Frame',
+  'Nudge -1 Frame',
+  'Step Bar',
+  'Step Back Bar',
+  'Jog Left',
+  'Jog Right',
+  'Shuttle Play 1x',
+  'Shuttle Play 2x',
+  'Shuttle Play 4x',
+  'Shuttle Play 8x',
+  'Shuttle Play 1/2x',
+  'Shuttle Play 1/4x',
+  'Shuttle Play 1/8x',
+  'Shuttle Play Reverse 1x',
+  'Shuttle Play Reverse 2x',
+  'Shuttle Play Reverse 4x',
+  'Shuttle Play Reverse 8x',
+  'Shuttle Play Reverse 1/2x',
+  'Shuttle Play Reverse 1/4x',
+  'Shuttle Play Reverse 1/8x',
+  'Audio Record Mode',
+  'Global Retrospective Record',
+  'Lock Record',
+  'MIDI Cycle Record Mode',
+  'MIDI Record Auto Quantize',
+  'MIDI Record Mode',
+  'Re-Record on/off',
+  'Start Mode',
+  'Start Record at Left Locator',
+  'Unlock Record',
+  'MIDI Retrospective Record: Empty All Buffers',
+  'MIDI Retrospective Record: Insert from Track Input as Cycle Recording',
+  'MIDI Retrospective Record: Insert from Track Input as Linear Recording',
+  'Input Tempo',
+  'Input Time Signature',
+  'Precount On',
+  'Project Synchronization Setup',
+  'Use External Sync',
+  'Use Post-roll',
+  'Use Pre-/Post-Roll',
+  'Use Pre-roll',
+  'Edit Mode',
+  'Exchange Time Formats',
+  'Metronome Setup',
+  'Panel',
+  'Tempo Track Rehearsal Mode On/Off',
+]
+
 // One device driver for the whole project (ADR-007) -- Cubase's MIDI Remote
 // will not bind two separate controllers to the same MIDI port pair, so every
 // phase lives in this one script on one port pair, differentiated only by
@@ -236,6 +367,20 @@ page.makeCommandBinding(btnSetPunchIn.mSurfaceValue, 'Transport', 'Set Punch In 
 page.makeCommandBinding(btnSetPunchOut.mSurfaceValue, 'Transport', 'Set Punch Out Position')
 page.makeCommandBinding(btnAutoPunchIn.mSurfaceValue, 'Transport', 'Auto Punch In')
 page.makeCommandBinding(btnAutoPunchOut.mSurfaceValue, 'Transport', 'Auto Punch Out')
+
+// Extended Transport buttons -- rows 4-13 (12 columns x 10 rows), generated
+// rather than 120 hand-written declarations. See
+// docs/superpowers/specs/2026-07-13-cubase-companion-extended-transport-design.md.
+var EXTENDED_TRANSPORT_GRID_WIDTH = 12
+var EXTENDED_TRANSPORT_START_ROW = 4
+
+for (var i = 0; i < EXTENDED_TRANSPORT_COMMANDS.length; i++) {
+  var col = i % EXTENDED_TRANSPORT_GRID_WIDTH
+  var row = EXTENDED_TRANSPORT_START_ROW + Math.floor(i / EXTENDED_TRANSPORT_GRID_WIDTH)
+  var btn = makeButton(col, row)
+  btn.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(EXTENDED_TRANSPORT_CHANNEL, i)
+  page.makeCommandBinding(btn.mSurfaceValue, 'Transport', EXTENDED_TRANSPORT_COMMANDS[i])
+}
 
 page.mOnActivate = function (activeDevice) {
   console.log('Cubanion: page activated')
