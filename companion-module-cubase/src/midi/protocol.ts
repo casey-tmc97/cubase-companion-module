@@ -58,6 +58,22 @@ export enum MarkerNote {
   ToMarker7 = 9,
   ToMarker8 = 10,
   ToMarker9 = 11,
+  // Set Marker 1-9 (assign/overwrite marker slot N at the current position)
+  // and punch points -- see
+  // docs/superpowers/specs/2026-07-13-cubase-companion-punch-markers-design.md.
+  SetMarker1 = 12,
+  SetMarker2 = 13,
+  SetMarker3 = 14,
+  SetMarker4 = 15,
+  SetMarker5 = 16,
+  SetMarker6 = 17,
+  SetMarker7 = 18,
+  SetMarker8 = 19,
+  SetMarker9 = 20,
+  SetPunchIn = 21,
+  SetPunchOut = 22,
+  AutoPunchIn = 23,
+  AutoPunchOut = 24,
 }
 
 export interface DecodedNote {
