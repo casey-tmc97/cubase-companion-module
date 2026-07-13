@@ -5,6 +5,7 @@ import type {
   CompanionPresetSection,
 } from '@companion-module/base'
 import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from './midi/protocol.js'
+import { EXTENDED_TRANSPORT_CHANNEL, EXTENDED_TRANSPORT_COMMANDS } from './midi/extendedTransportCommands.js'
 
 export interface ModuleLike {
   midi: {
@@ -235,6 +236,18 @@ export function UpdateActions(self: ModuleLike): void {
       callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.AutoPunchOut),
     },
   }
+
+  // 120 remaining Transport-category key commands, generated from the shared
+  // command table rather than hand-written per command -- see
+  // docs/superpowers/specs/2026-07-13-cubase-companion-extended-transport-design.md.
+  // Note number is always the command's index in EXTENDED_TRANSPORT_COMMANDS.
+  EXTENDED_TRANSPORT_COMMANDS.forEach((cmd, index) => {
+    definitions[cmd.id] = {
+      name: cmd.label,
+      options: [],
+      callback: async () => self.midi.sendTrigger(EXTENDED_TRANSPORT_CHANNEL, index),
+    }
+  })
 
   self.setActionDefinitions(definitions)
 }

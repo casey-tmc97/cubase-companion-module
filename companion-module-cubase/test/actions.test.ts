@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { UpdateActions } from '../src/actions.js'
 import { TransportNote, MarkerNote, TRANSPORT_CHANNEL, MARKERS_CHANNEL } from '../src/midi/protocol.js'
+import { EXTENDED_TRANSPORT_CHANNEL, EXTENDED_TRANSPORT_COMMANDS } from '../src/midi/extendedTransportCommands.js'
 
 function makeFakeSelf() {
   return {
@@ -23,45 +24,45 @@ describe('UpdateActions', () => {
     UpdateActions(self as any)
 
     const definitions = self.setActionDefinitions.mock.calls[0][0]
-    expect(Object.keys(definitions).sort()).toEqual(
-      [
-        'play',
-        'stop',
-        'record',
-        'returnToZero',
-        'toggleCycle',
-        'toggleClick',
-        'rewind',
-        'rewindStop',
-        'forward',
-        'forwardStop',
-        'addMarker',
-        'nextMarker',
-        'previousMarker',
-        'toMarker1',
-        'toMarker2',
-        'toMarker3',
-        'toMarker4',
-        'toMarker5',
-        'toMarker6',
-        'toMarker7',
-        'toMarker8',
-        'toMarker9',
-        'setMarker1',
-        'setMarker2',
-        'setMarker3',
-        'setMarker4',
-        'setMarker5',
-        'setMarker6',
-        'setMarker7',
-        'setMarker8',
-        'setMarker9',
-        'setPunchIn',
-        'setPunchOut',
-        'autoPunchIn',
-        'autoPunchOut',
-      ].sort(),
-    )
+    const expectedIds = [
+      'play',
+      'stop',
+      'record',
+      'returnToZero',
+      'toggleCycle',
+      'toggleClick',
+      'rewind',
+      'rewindStop',
+      'forward',
+      'forwardStop',
+      'addMarker',
+      'nextMarker',
+      'previousMarker',
+      'toMarker1',
+      'toMarker2',
+      'toMarker3',
+      'toMarker4',
+      'toMarker5',
+      'toMarker6',
+      'toMarker7',
+      'toMarker8',
+      'toMarker9',
+      'setMarker1',
+      'setMarker2',
+      'setMarker3',
+      'setMarker4',
+      'setMarker5',
+      'setMarker6',
+      'setMarker7',
+      'setMarker8',
+      'setMarker9',
+      'setPunchIn',
+      'setPunchOut',
+      'autoPunchIn',
+      'autoPunchOut',
+      ...EXTENDED_TRANSPORT_COMMANDS.map((c) => c.id),
+    ]
+    expect(Object.keys(definitions).sort()).toEqual(expectedIds.sort())
   })
 
   // Cubase's mRewind/mForward host values need a genuine hold (value stays 1
@@ -294,4 +295,17 @@ describe('UpdateActions', () => {
 
     expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.AutoPunchOut)
   })
+
+  it.each(EXTENDED_TRANSPORT_COMMANDS.map((cmd, index) => [cmd.id, index] as const))(
+    'extended transport action %s sends a trigger on EXTENDED_TRANSPORT_CHANNEL, note %i',
+    async (id, index) => {
+      const self = makeFakeSelf()
+      UpdateActions(self as any)
+      const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+      await definitions[id].callback({} as any)
+
+      expect(self.midi.sendTrigger).toHaveBeenCalledWith(EXTENDED_TRANSPORT_CHANNEL, index)
+    },
+  )
 })
