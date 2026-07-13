@@ -8,6 +8,15 @@ export enum TransportNote {
   Play = 0,
   Stop = 1,
   Record = 2,
+  // Return to Zero/Cycle/Click/Rewind/Forward were built, unit-tested, and
+  // (all but Return to Zero) verified live before being trimmed out of the
+  // v1.0 release for scope, then restored here -- see the original
+  // 2026-07-08 Phase 1 design spec for the full rationale.
+  ReturnToZero = 3,
+  Cycle = 4,
+  Click = 5,
+  Rewind = 6,
+  Forward = 7,
   Heartbeat = 9,
   // Dedicated state-feedback notes (Cubase -> Companion only), separate from
   // the trigger notes above (Companion -> Cubase). ADR-004 originally had
@@ -18,9 +27,12 @@ export enum TransportNote {
   // Cubase's mOnProcessValueChange -- see ADR-004 for detail). Splitting
   // feedback onto its own notes, in the 10+ range ADR-004 reserved for
   // exactly this, means the Cubase script's own output never matches what its
-  // input binding is listening for.
+  // input binding is listening for. Return to Zero/Rewind/Forward have no
+  // state note -- they're one-shot triggers with no persistent on/off state.
   PlayState = 10,
   RecordState = 11,
+  CycleState = 12,
+  ClickState = 13,
 }
 
 // Markers phase note map, on MARKERS_CHANNEL -- entirely separate from
@@ -32,6 +44,20 @@ export enum TransportNote {
 // docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
 export enum MarkerNote {
   AddMarker = 0,
+  // Next/Previous Marker and To Marker 1-9 were built, unit-tested, and
+  // verified live before being trimmed out of the v1.0 release for scope,
+  // then restored here -- see docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
+  NextMarker = 1,
+  PreviousMarker = 2,
+  ToMarker1 = 3,
+  ToMarker2 = 4,
+  ToMarker3 = 5,
+  ToMarker4 = 6,
+  ToMarker5 = 7,
+  ToMarker6 = 8,
+  ToMarker7 = 9,
+  ToMarker8 = 10,
+  ToMarker9 = 11,
 }
 
 export interface DecodedNote {

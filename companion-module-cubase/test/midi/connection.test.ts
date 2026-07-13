@@ -116,6 +116,8 @@ describe('MidiConnection heartbeat-timeout disconnect detection', () => {
     expect(connection.getTransportState()).toEqual({
       playing: false,
       recording: false,
+      cycleActive: false,
+      clickActive: false,
     })
 
     connection.close()

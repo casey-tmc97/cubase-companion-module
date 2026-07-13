@@ -32,6 +32,22 @@ export function UpdateFeedbacks(self: ModuleLike): void {
       options: [],
       callback: async () => isStopped(self.midi.getTransportState()),
     },
+    cycleActive: {
+      type: 'boolean',
+      name: 'Cycle Active',
+      description: 'True when Cycle/Loop is enabled in Cubase',
+      defaultStyle: activeStyle,
+      options: [],
+      callback: async () => self.midi.getTransportState().cycleActive,
+    },
+    clickActive: {
+      type: 'boolean',
+      name: 'Click Active',
+      description: 'True when the Metronome/Click is enabled in Cubase',
+      defaultStyle: activeStyle,
+      options: [],
+      callback: async () => self.midi.getTransportState().clickActive,
+    },
     cubaseConnected: {
       type: 'boolean',
       name: 'Cubase Connected',

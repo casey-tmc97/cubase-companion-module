@@ -18,12 +18,115 @@ function makeFakeSelf() {
 }
 
 describe('UpdateActions', () => {
-  it('registers exactly Play, Stop, Record, and Add Marker', () => {
+  it('registers one action per transport function plus Add Marker', () => {
     const self = makeFakeSelf()
     UpdateActions(self as any)
 
     const definitions = self.setActionDefinitions.mock.calls[0][0]
-    expect(Object.keys(definitions).sort()).toEqual(['addMarker', 'play', 'record', 'stop'])
+    expect(Object.keys(definitions).sort()).toEqual(
+      [
+        'play',
+        'stop',
+        'record',
+        'returnToZero',
+        'toggleCycle',
+        'toggleClick',
+        'rewind',
+        'rewindStop',
+        'forward',
+        'forwardStop',
+        'addMarker',
+        'nextMarker',
+        'previousMarker',
+        'toMarker1',
+        'toMarker2',
+        'toMarker3',
+        'toMarker4',
+        'toMarker5',
+        'toMarker6',
+        'toMarker7',
+        'toMarker8',
+        'toMarker9',
+      ].sort(),
+    )
+  })
+
+  // Cubase's mRewind/mForward host values need a genuine hold (value stays 1
+  // while pressed, back to 0 on release) to produce continuous motion -- a
+  // Note On immediately followed by Note Off (sendTrigger's shape) never
+  // registers as a hold. So rewind/forward send only Note On (start of hold)
+  // and rely on a paired rewindStop/forwardStop action -- wired to the preset
+  // button's release step -- to send Note Off (end of hold).
+  it('rewind action sends Note On (not a full trigger) on the Rewind note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.rewind.callback({} as any)
+
+    expect(self.midi.sendNoteOn).toHaveBeenCalledWith(TransportNote.Rewind)
+    expect(self.midi.sendTrigger).not.toHaveBeenCalled()
+  })
+
+  it('rewindStop action sends Note Off on the Rewind note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.rewindStop.callback({} as any)
+
+    expect(self.midi.sendNoteOff).toHaveBeenCalledWith(TransportNote.Rewind)
+  })
+
+  it('forward action sends Note On (not a full trigger) on the Forward note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.forward.callback({} as any)
+
+    expect(self.midi.sendNoteOn).toHaveBeenCalledWith(TransportNote.Forward)
+    expect(self.midi.sendTrigger).not.toHaveBeenCalled()
+  })
+
+  it('forwardStop action sends Note Off on the Forward note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.forwardStop.callback({} as any)
+
+    expect(self.midi.sendNoteOff).toHaveBeenCalledWith(TransportNote.Forward)
+  })
+
+  it('returnToZero action sends a trigger on TRANSPORT_CHANNEL, ReturnToZero note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.returnToZero.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.ReturnToZero)
+  })
+
+  it('toggleCycle action sends a trigger on TRANSPORT_CHANNEL, Cycle note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.toggleCycle.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Cycle)
+  })
+
+  it('toggleClick action sends a trigger on TRANSPORT_CHANNEL, Click note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.toggleClick.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(TRANSPORT_CHANNEL, TransportNote.Click)
   })
 
   it('play action sends a trigger on TRANSPORT_CHANNEL, Play note', async () => {
@@ -77,5 +180,45 @@ describe('UpdateActions', () => {
     await definitions.addMarker.callback({} as any)
 
     expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.AddMarker)
+  })
+
+  it('nextMarker action sends a trigger on MARKERS_CHANNEL, NextMarker note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.nextMarker.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.NextMarker)
+  })
+
+  it('previousMarker action sends a trigger on MARKERS_CHANNEL, PreviousMarker note', async () => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions.previousMarker.callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote.PreviousMarker)
+  })
+
+  it.each([
+    [1, 'ToMarker1'],
+    [2, 'ToMarker2'],
+    [3, 'ToMarker3'],
+    [4, 'ToMarker4'],
+    [5, 'ToMarker5'],
+    [6, 'ToMarker6'],
+    [7, 'ToMarker7'],
+    [8, 'ToMarker8'],
+    [9, 'ToMarker9'],
+  ] as const)('toMarker%i action sends a trigger on MARKERS_CHANNEL, %s note', async (n, noteKey) => {
+    const self = makeFakeSelf()
+    UpdateActions(self as any)
+    const definitions = self.setActionDefinitions.mock.calls[0][0]
+
+    await definitions[`toMarker${n}`].callback({} as any)
+
+    expect(self.midi.sendTrigger).toHaveBeenCalledWith(MARKERS_CHANNEL, MarkerNote[noteKey])
   })
 })

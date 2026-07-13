@@ -5,6 +5,11 @@ var TRANSPORT_CHANNEL = 15
 var NOTE_PLAY = 0
 var NOTE_STOP = 1
 var NOTE_RECORD = 2
+var NOTE_RETURN_TO_ZERO = 3
+var NOTE_CYCLE = 4
+var NOTE_CLICK = 5
+var NOTE_REWIND = 6
+var NOTE_FORWARD = 7
 var NOTE_HEARTBEAT = 9
 // Dedicated state-feedback notes (Cubase -> Companion only), separate from the
 // trigger notes above (Companion -> Cubase). Feedback used to share the same
@@ -17,6 +22,8 @@ var NOTE_HEARTBEAT = 9
 // own input binding is listening for. See ADR-004.
 var NOTE_PLAY_STATE = 10
 var NOTE_RECORD_STATE = 11
+var NOTE_CYCLE_STATE = 12
+var NOTE_CLICK_STATE = 13
 var HEARTBEAT_INTERVAL_MS = 2000
 
 // Markers -- MIDI channel 15, zero-indexed 14. Own dedicated channel per
@@ -26,6 +33,20 @@ var HEARTBEAT_INTERVAL_MS = 2000
 // self-contained and easy to reason about in isolation.
 var MARKERS_CHANNEL = 14
 var NOTE_ADD_MARKER = 0
+// Next/Previous Marker and To Marker 1-9 were built, unit-tested, and
+// verified live before being trimmed out of the v1.0 release for scope, then
+// restored here -- see docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
+var NOTE_NEXT_MARKER = 1
+var NOTE_PREVIOUS_MARKER = 2
+var NOTE_TO_MARKER_1 = 3
+var NOTE_TO_MARKER_2 = 4
+var NOTE_TO_MARKER_3 = 5
+var NOTE_TO_MARKER_4 = 6
+var NOTE_TO_MARKER_5 = 7
+var NOTE_TO_MARKER_6 = 8
+var NOTE_TO_MARKER_7 = 9
+var NOTE_TO_MARKER_8 = 10
+var NOTE_TO_MARKER_9 = 11
 
 // One device driver for the whole project (ADR-007) -- Cubase's MIDI Remote
 // will not bind two separate controllers to the same MIDI port pair, so every
@@ -35,14 +56,8 @@ var NOTE_ADD_MARKER = 0
 // Vendor/model renamed from 'CubaseCompanion'/'Transport' to 'Cubanion'/'Transport'
 // on 2026-07-13, at the project owner's explicit request to have all branding read
 // "Cubanion" rather than "Cubase Companion"/"Steinberg Cubase" (this is not a
-// Steinberg product). ADR-008 documents that this Cubase install could not
-// discover ANY new vendor/model pair via fresh Local-script discovery as of
-// 2026-07-10 -- if this renamed pair fails to appear in Cubase's MIDI Remote
-// Manager / Add Surface list, that is the same unresolved issue, not a bug in
-// this rename. The previous working file at
-// Local/CubaseCompanion/Transport/CubaseCompanion_Transport.js (vendor
-// 'CubaseCompanion', model 'Transport') is intentionally left in place as a
-// fallback until this renamed registration is confirmed working live.
+// Steinberg product). ADR-008's update note documents that fresh Local-script
+// discovery of this new vendor/model pair was confirmed working on 2026-07-13.
 var deviceDriver = midiremote_api.makeDeviceDriver('Cubanion', 'Transport', 'Cubanion')
 
 var midiInput = deviceDriver.mPorts.makeMidiInput()
@@ -50,9 +65,7 @@ var midiOutput = deviceDriver.mPorts.makeMidiOutput()
 
 // Matches the existing "Cubase" loopMIDI port pair already in use (not renamed
 // to "Cubanion") -- the virtual MIDI port name is runtime environment
-// configuration, not part of this project's own branding, and changing it here
-// would require also recreating the loopMIDI port under a new name, adding an
-// unrelated variable to an already-risky rename. See the ADR-008 comment above.
+// configuration, not part of this project's own branding.
 deviceDriver
   .makeDetectionUnit()
   .detectPortPair(midiInput, midiOutput)
@@ -65,32 +78,68 @@ function makeButton(x, y) {
   return surface.makeButton(x, y, 1, 1)
 }
 
-// All four buttons on one row -- the surface grid position here is only
-// this script's own local layout and has no effect on Companion's UI (each
-// Companion action/button is placed independently in Companion itself), so
-// there's no reason to spread Transport/Markers across separate rows now
-// that there are only four buttons total.
+// Transport buttons -- row 0. Full transport set (Play/Stop/Record/Return to
+// Zero/Cycle/Click/Rewind/Forward) as documented in the original 2026-07-08
+// Phase 1 design spec; Return to Zero/Cycle/Click/Rewind/Forward were built,
+// unit-tested, and (all but Return to Zero) verified live before being
+// trimmed out of the v1.0 release for scope, then restored here.
 var btnPlay = makeButton(0, 0)
 var btnStop = makeButton(1, 0)
 var btnRecord = makeButton(2, 0)
-var btnAddMarker = makeButton(3, 0)
+var btnReturnToZero = makeButton(3, 0)
+var btnCycle = makeButton(4, 0)
+var btnClick = makeButton(5, 0)
+var btnRewind = makeButton(6, 0)
+var btnForward = makeButton(7, 0)
 
-// Play/Record are input-only here (no .setOutputPort()) -- Steinberg's
-// automatic MIDI-mirror for .setTypeToggle() bindings turned out to send a
-// noisy burst of 5-7 redundant, differently-encoded messages (mixed Note
-// On/Off velocities plus an undocumented Polyphonic Aftertouch message) per
-// single toggle, which the Companion module's simple state tracker can't
-// reliably resolve to one clean value. See the explicit
-// mOnProcessValueChange feedback below instead, which sends exactly one
-// message per real change.
+// Markers buttons -- row 1, so they don't collide with Transport's row-0 grid
+// positions. Next/Previous/To Marker 1-9 were built, unit-tested, and
+// verified live before being trimmed out of the v1.0 release for scope, then
+// restored here.
+var btnAddMarker = makeButton(0, 1)
+var btnNextMarker = makeButton(1, 1)
+var btnPreviousMarker = makeButton(2, 1)
+var btnToMarker1 = makeButton(3, 1)
+var btnToMarker2 = makeButton(4, 1)
+var btnToMarker3 = makeButton(5, 1)
+var btnToMarker4 = makeButton(6, 1)
+var btnToMarker5 = makeButton(7, 1)
+var btnToMarker6 = makeButton(8, 1)
+var btnToMarker7 = makeButton(9, 1)
+var btnToMarker8 = makeButton(10, 1)
+var btnToMarker9 = makeButton(11, 1)
+
+// Play/Record/Cycle/Click are input-only here (no .setOutputPort()) --
+// Steinberg's automatic MIDI-mirror for .setTypeToggle() bindings turned out
+// to send a noisy burst of 5-7 redundant, differently-encoded messages (mixed
+// Note On/Off velocities plus an undocumented Polyphonic Aftertouch message)
+// per single toggle, which the Companion module's simple state tracker can't
+// reliably resolve to one clean value. See the explicit mOnProcessValueChange
+// feedback below instead, which sends exactly one message per real change.
 btnPlay.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_PLAY)
 btnStop.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_STOP)
 btnRecord.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_RECORD)
+btnReturnToZero.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_RETURN_TO_ZERO)
+btnCycle.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_CYCLE)
+btnClick.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_CLICK)
+btnRewind.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_REWIND)
+btnForward.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(TRANSPORT_CHANNEL, NOTE_FORWARD)
 
 // Add Marker is input-only (no .setOutputPort()) -- a one-shot command
 // trigger with no persistent state, so there's nothing to send feedback for
 // (see the Markers design spec's Scope section).
 btnAddMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_ADD_MARKER)
+btnNextMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_NEXT_MARKER)
+btnPreviousMarker.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_PREVIOUS_MARKER)
+btnToMarker1.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_1)
+btnToMarker2.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_2)
+btnToMarker3.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_3)
+btnToMarker4.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_4)
+btnToMarker5.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_5)
+btnToMarker6.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_6)
+btnToMarker7.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_7)
+btnToMarker8.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_8)
+btnToMarker9.mSurfaceValue.mMidiBinding.setInputPort(midiInput).bindToNote(MARKERS_CHANNEL, NOTE_TO_MARKER_9)
 
 // One page for everything -- Steinberg MIDI Remote pages are for switching
 // between alternate mappings (e.g. banks) and are not all simultaneously
@@ -102,21 +151,41 @@ var page = deviceDriver.mMapping.makePage('Main')
 page.makeValueBinding(btnPlay.mSurfaceValue, page.mHostAccess.mTransport.mValue.mStart).setTypeToggle()
 page.makeValueBinding(btnStop.mSurfaceValue, page.mHostAccess.mTransport.mValue.mStop)
 page.makeValueBinding(btnRecord.mSurfaceValue, page.mHostAccess.mTransport.mValue.mRecord).setTypeToggle()
+// Return to Zero has no dedicated mTransport.mValue member (unlike Start/Stop/Record/
+// Rewind/Forward/Cycle/Metronome) -- it's a Transport menu key command, so it's bound
+// via makeCommandBinding to Cubase's built-in "Return to Zero" key command instead.
+// Confirmed working against this Cubase install on 2026-07-13.
+page.makeCommandBinding(btnReturnToZero.mSurfaceValue, 'Transport', 'Return to Zero')
+page.makeValueBinding(btnCycle.mSurfaceValue, page.mHostAccess.mTransport.mValue.mCycleActive).setTypeToggle()
+page.makeValueBinding(btnClick.mSurfaceValue, page.mHostAccess.mTransport.mValue.mMetronomeActive).setTypeToggle()
+page.makeValueBinding(btnRewind.mSurfaceValue, page.mHostAccess.mTransport.mValue.mRewind)
+page.makeValueBinding(btnForward.mSurfaceValue, page.mHostAccess.mTransport.mValue.mForward)
 
 // Exact Cubase key command name, category 'Transport' -- pulled from this
 // Cubase install's own key-command presets (Presets/KeyCommands/*.xml), not
-// guessed. 'To Marker N' jumps to an existing marker; 'Set Marker N' (not
-// used here) assigns/overwrites one instead -- see the Markers design spec's
-// decision log.
+// guessed.
 page.makeCommandBinding(btnAddMarker.mSurfaceValue, 'Transport', 'Insert Marker')
+page.makeCommandBinding(btnNextMarker.mSurfaceValue, 'Transport', 'Locate Next Marker')
+page.makeCommandBinding(btnPreviousMarker.mSurfaceValue, 'Transport', 'Locate Previous Marker')
+page.makeCommandBinding(btnToMarker1.mSurfaceValue, 'Transport', 'To Marker 1')
+page.makeCommandBinding(btnToMarker2.mSurfaceValue, 'Transport', 'To Marker 2')
+page.makeCommandBinding(btnToMarker3.mSurfaceValue, 'Transport', 'To Marker 3')
+page.makeCommandBinding(btnToMarker4.mSurfaceValue, 'Transport', 'To Marker 4')
+page.makeCommandBinding(btnToMarker5.mSurfaceValue, 'Transport', 'To Marker 5')
+page.makeCommandBinding(btnToMarker6.mSurfaceValue, 'Transport', 'To Marker 6')
+page.makeCommandBinding(btnToMarker7.mSurfaceValue, 'Transport', 'To Marker 7')
+page.makeCommandBinding(btnToMarker8.mSurfaceValue, 'Transport', 'To Marker 8')
+page.makeCommandBinding(btnToMarker9.mSurfaceValue, 'Transport', 'To Marker 9')
 
 page.mOnActivate = function (activeDevice) {
   console.log('Cubanion: page activated')
 }
 
-// Explicit, single-message state feedback for the two bidirectional
-// Transport toggles (Play/Record). Add Marker has no feedback -- see Scope
-// in the Markers design spec.
+// Explicit, single-message state feedback for the four bidirectional
+// Transport toggles (Play/Record/Cycle/Click). Return to Zero/Rewind/Forward
+// have no feedback -- they're one-shot triggers with no persistent on/off
+// state, matching how Cubase's own transport bar behaves (those buttons don't
+// stay lit either). Add Marker has no feedback for the same reason.
 //
 // NOTE: a prior version of this bound the callback to the *host* value
 // (page.mHostAccess.mTransport.mValue.mX.mOnProcessValueChange) instead of
@@ -127,10 +196,10 @@ page.mOnActivate = function (activeDevice) {
 // mOnProcessValueChange on MR_SurfaceElementValue (i.e. mSurfaceValue) -- it
 // isn't a real hook on host value objects at all, so that version silently
 // did nothing. This is the object the API actually supports.
-function bindStateFeedback(surfaceValue, channel, note) {
+function bindStateFeedback(surfaceValue, note) {
   surfaceValue.mOnProcessValueChange = function (activeDevice, value) {
-    var statusOn = 0x90 | channel
-    var statusOff = 0x80 | channel
+    var statusOn = 0x90 | TRANSPORT_CHANNEL
+    var statusOff = 0x80 | TRANSPORT_CHANNEL
     if (value >= 0.5) {
       midiOutput.sendMidi(activeDevice, [statusOn, note, 127])
     } else {
@@ -139,8 +208,10 @@ function bindStateFeedback(surfaceValue, channel, note) {
   }
 }
 
-bindStateFeedback(btnPlay.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_PLAY_STATE)
-bindStateFeedback(btnRecord.mSurfaceValue, TRANSPORT_CHANNEL, NOTE_RECORD_STATE)
+bindStateFeedback(btnPlay.mSurfaceValue, NOTE_PLAY_STATE)
+bindStateFeedback(btnRecord.mSurfaceValue, NOTE_RECORD_STATE)
+bindStateFeedback(btnCycle.mSurfaceValue, NOTE_CYCLE_STATE)
+bindStateFeedback(btnClick.mSurfaceValue, NOTE_CLICK_STATE)
 
 var lastHeartbeatSentAt = 0
 

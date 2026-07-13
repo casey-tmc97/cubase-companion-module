@@ -11,7 +11,7 @@ export interface ModuleLike {
     sendTrigger(channel: number, note: number): void
     sendNoteOn(note: number): void
     sendNoteOff(note: number): void
-    getTransportState(): { playing: boolean; recording: boolean }
+    getTransportState(): { playing: boolean; recording: boolean; cycleActive: boolean; clickActive: boolean }
     isConnected(): boolean
   }
   setActionDefinitions(definitions: CompanionActionDefinitions): void
@@ -59,6 +59,46 @@ export function UpdateActions(self: ModuleLike): void {
       options: [],
       callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Record),
     },
+    returnToZero: {
+      name: 'Return to Zero',
+      options: [],
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.ReturnToZero),
+    },
+    toggleCycle: {
+      name: 'Toggle Cycle',
+      options: [],
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Cycle),
+    },
+    toggleClick: {
+      name: 'Toggle Click',
+      options: [],
+      callback: async () => self.midi.sendTrigger(TRANSPORT_CHANNEL, TransportNote.Click),
+    },
+    // Cubase's mRewind/mForward host values need a genuine hold (value stays 1
+    // while pressed, back to 0 on release) to produce continuous motion -- a
+    // Note On immediately followed by Note Off (sendTrigger's shape) never
+    // registers as a hold, so these send only Note On. Presets pair each with
+    // its *Stop counterpart (Note Off) wired to the button's release step.
+    rewind: {
+      name: 'Rewind (Hold)',
+      options: [],
+      callback: async () => self.midi.sendNoteOn(TransportNote.Rewind),
+    },
+    rewindStop: {
+      name: 'Rewind Stop',
+      options: [],
+      callback: async () => self.midi.sendNoteOff(TransportNote.Rewind),
+    },
+    forward: {
+      name: 'Forward (Hold)',
+      options: [],
+      callback: async () => self.midi.sendNoteOn(TransportNote.Forward),
+    },
+    forwardStop: {
+      name: 'Forward Stop',
+      options: [],
+      callback: async () => self.midi.sendNoteOff(TransportNote.Forward),
+    },
     // Markers (Phase 3): one-shot trigger on MARKERS_CHANNEL, no feedback --
     // see docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md
     // and ADR-006.
@@ -66,6 +106,65 @@ export function UpdateActions(self: ModuleLike): void {
       name: 'Add Marker',
       options: [],
       callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.AddMarker),
+    },
+    // Next/Previous Marker and To Marker 1-9 were built, unit-tested, and
+    // verified live before being trimmed out of the v1.0 release for scope,
+    // then restored here -- see
+    // docs/superpowers/specs/2026-07-09-cubase-companion-markers-design.md.
+    nextMarker: {
+      name: 'Next Marker',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.NextMarker),
+    },
+    previousMarker: {
+      name: 'Previous Marker',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.PreviousMarker),
+    },
+    toMarker1: {
+      name: 'To Marker 1',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker1),
+    },
+    toMarker2: {
+      name: 'To Marker 2',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker2),
+    },
+    toMarker3: {
+      name: 'To Marker 3',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker3),
+    },
+    toMarker4: {
+      name: 'To Marker 4',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker4),
+    },
+    toMarker5: {
+      name: 'To Marker 5',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker5),
+    },
+    toMarker6: {
+      name: 'To Marker 6',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker6),
+    },
+    toMarker7: {
+      name: 'To Marker 7',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker7),
+    },
+    toMarker8: {
+      name: 'To Marker 8',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker8),
+    },
+    toMarker9: {
+      name: 'To Marker 9',
+      options: [],
+      callback: async () => self.midi.sendTrigger(MARKERS_CHANNEL, MarkerNote.ToMarker9),
     },
   }
 
